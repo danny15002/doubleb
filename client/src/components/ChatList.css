@@ -1,0 +1,369 @@
+.chat-list {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: white;
+  border-right: 1px solid #e0e0e0;
+}
+
+.chat-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.user-details h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+}
+
+.user-details p {
+  font-size: 0.8rem;
+  color: #666;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logout-button {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+.logout-button:hover {
+  background-color: #e9ecef;
+  color: #333;
+}
+
+.notification-button {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.notification-button:hover {
+  background-color: #e9ecef;
+  color: #333;
+}
+
+.notification-button.disabled {
+  color: #ff6b6b;
+  cursor: not-allowed;
+}
+
+.notification-button.disabled:hover {
+  background-color: #fff5f5;
+  color: #ff6b6b;
+}
+
+/* Add a subtle indicator for enabled notifications */
+.notification-button:not(.disabled) {
+  color: #4CAF50;
+}
+
+.notification-button:not(.disabled):hover {
+  background-color: #f0f9f0;
+  color: #45a049;
+}
+
+.search-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 20px;
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.search-input-wrapper {
+  position: relative;
+  flex: 1;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #999;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px 12px 10px 40px;
+  border: 1px solid #e0e0e0;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  background: #f8f9fa;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #667eea;
+  background: white;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+}
+
+.new-chat-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.new-chat-button:hover {
+  transform: scale(1.05);
+}
+
+.chats-container {
+  flex: 1;
+  overflow-y: auto;
+  background: white;
+}
+
+.loading-chats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+}
+
+.loading-spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.no-chats {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #999;
+  text-align: center;
+  padding: 20px;
+}
+
+.no-chats-icon {
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+.no-chats p {
+  font-size: 1rem;
+  margin-bottom: 5px;
+}
+
+.no-chats small {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
+.chat-item {
+  display: flex;
+  align-items: center;
+  padding: 15px 20px;
+  transition: background-color 0.2s ease;
+  border-bottom: 1px solid #f0f0f0;
+  position: relative;
+}
+
+.chat-item:hover {
+  background-color: #f8f9fa;
+}
+
+.chat-item:hover .delete-chat-button {
+  opacity: 1;
+}
+
+.chat-content {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  cursor: pointer;
+}
+
+.chat-content:active {
+  background-color: #e9ecef;
+}
+
+.chat-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  margin-right: 15px;
+  flex-shrink: 0;
+}
+
+.chat-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.chat-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.chat-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-time {
+  font-size: 0.75rem;
+  color: #999;
+  white-space: nowrap;
+  margin-left: 10px;
+}
+
+.chat-preview {
+  font-size: 0.85rem;
+  color: #666;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .chat-list-header {
+    padding: 15px;
+  }
+  
+  .search-container {
+    padding: 12px 15px;
+  }
+  
+  .chat-item {
+    padding: 12px 15px;
+  }
+  
+  .chat-avatar {
+    width: 45px;
+    height: 45px;
+    font-size: 1.1rem;
+  }
+  
+  .user-avatar {
+    width: 35px;
+    height: 35px;
+    font-size: 1rem;
+  }
+}
+
+/* Delete Chat Button */
+.delete-chat-button {
+  background: #ff4757;
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.6;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
+
+.delete-chat-button:hover {
+  background: #ff3742;
+  transform: scale(1.1);
+  opacity: 1;
+}
+
+.delete-chat-button:active {
+  transform: scale(0.95);
+}
+
+/* Always show delete button on mobile */
+@media (max-width: 768px) {
+  .delete-chat-button {
+    opacity: 0.8;
+  }
+  
+  .delete-chat-button:hover {
+    opacity: 1;
+  }
+}

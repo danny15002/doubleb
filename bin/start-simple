@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# Simple startup script for BB Chat
+# This script handles port conflicts and starts the servers
+
+echo "🚀 Starting Beep Boop Chat..."
+
+# Kill existing processes
+echo "🔄 Cleaning up existing processes..."
+pkill -f "npm run dev" 2>/dev/null || true
+pkill -f "nodemon.*index.js" 2>/dev/null || true
+pkill -f "concurrently.*npm run" 2>/dev/null || true
+pkill -f "react-scripts start" 2>/dev/null || true
+
+# Wait for processes to die
+sleep 2
+
+# Check if .env exists, if not create it
+if [ ! -f ".env" ]; then
+    echo "📝 Creating .env file from template..."
+    cp env.example .env
+    echo "⚠️  Please edit .env file with your database credentials"
+    echo "   Then run this script again"
+    exit 1
+fi
+
+# Find available ports
+echo "🔍 Finding available ports..."
+
+# Function to check if port is in use
+port_in_use() {
+    lsof -i :$1 >/dev/null 2>&1
+}
+
+# Find available client port
+CLIENT_PORT=3000
+while port_in_use $CLIENT_PORT; do
+    CLIENT_PORT=$((CLIENT_PORT + 1))
+done
+
+# Find available server port
+SERVER_PORT=5000
+while port_in_use $SERVER_PORT; do
+    SERVER_PORT=$((SERVER_PORT + 1))
+done
+
+echo "✅ Using ports: Client=$CLIENT_PORT, Server=$SERVER_PORT"
+
+# Export ports
+export PORT=$SERVER_PORT
+export REACT_APP_SERVER_PORT=$SERVER_PORT
+
+# Start servers
+echo "🚀 Starting development servers..."
+echo "   Client: http://localhost:$CLIENT_PORT"
+echo "   Server: http://localhost:$SERVER_PORT"
+echo ""
+echo "Press Ctrl+C to stop all servers"
+echo ""
+
+# Start both servers
+PORT=$CLIENT_PORT npm start --prefix client &
+CLIENT_PID=$!
+
+PORT=$SERVER_PORT npm run dev --prefix server &
+SERVER_PID=$!
+
+# Function to cleanup on exit
+cleanup() {
+    echo ""
+    echo "🛑 Stopping servers..."
+    kill $CLIENT_PID 2>/dev/null || true
+    kill $SERVER_PID 2>/dev/null || true
+    pkill -f "react-scripts start" 2>/dev/null || true
+    pkill -f "nodemon.*index.js" 2>/dev/null || true
+    echo "✅ Cleanup complete"
+    exit 0
+}
+
+# Set up signal handlers
+trap cleanup SIGINT SIGTERM
+
+# Wait for both processes
+wait
