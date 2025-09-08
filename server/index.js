@@ -17,11 +17,13 @@ const server = createServer(app);
 // Socket.IO setup
 const io = new Server(server, {
   cors: {
-    origin: [
-      process.env.CLIENT_URL || "http://localhost:3000",
-      "http://localhost:3000",
-      "http://127.0.0.1:3000"
-    ],
+    origin: process.env.NODE_ENV === 'production' 
+      ? [process.env.CLIENT_URL, process.env.RAILWAY_PUBLIC_DOMAIN]
+      : [
+          process.env.CLIENT_URL || "http://localhost:3000",
+          "http://localhost:3000",
+          "http://127.0.0.1:3000"
+        ],
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -42,11 +44,13 @@ app.use(helmet());
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
 app.use(limiter);
 app.use(cors({
-  origin: [
-    process.env.CLIENT_URL || "http://localhost:3000",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000"
-  ],
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.CLIENT_URL, process.env.RAILWAY_PUBLIC_DOMAIN]
+    : [
+        process.env.CLIENT_URL || "http://localhost:3000",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000"
+      ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
@@ -63,6 +67,17 @@ app.use('/api/messages', messageRoutes);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
+
+// Serve static files from React build in production
+if (process.env.NODE_ENV === 'production') {
+  const path = require('path');
+  app.use(express.static(path.join(__dirname, '../client/build')));
+  
+  // Handle React routing, return all requests to React app
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+  });
+}
 
 // Socket.IO connection handling
 io.use(async (socket, next) => {
