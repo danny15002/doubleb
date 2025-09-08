@@ -10,6 +10,7 @@ const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chats');
 const messageRoutes = require('./routes/messages');
 const { authenticateToken } = require('./middleware/auth');
+const { testConnection } = require('./database/connection');
 
 const app = express();
 const server = createServer(app);
@@ -68,14 +69,17 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Serve static files from React build in production
+// Serve static files from Vite build in production
 if (process.env.NODE_ENV === 'production') {
   const path = require('path');
-  app.use(express.static(path.join(__dirname, '../client/build')));
+  const buildPath = path.join(__dirname, '../client/build');
+  
+  // Serve static files from Vite build directory
+  app.use(express.static(buildPath));
   
   // Handle React routing, return all requests to React app
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+    res.sendFile(path.join(buildPath, 'index.html'));
   });
 }
 
@@ -90,7 +94,7 @@ io.use(async (socket, next) => {
     const jwt = require('jsonwebtoken');
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    const pool = require('./database/connection');
+    const { pool } = require('./database/connection');
     const userResult = await pool.query(
       'SELECT id, username, display_name FROM users WHERE id = $1',
       [decoded.userId]
@@ -114,7 +118,7 @@ io.on('connection', (socket) => {
   // Join user to their chat rooms
   socket.on('join-chats', async () => {
     try {
-      const pool = require('./database/connection');
+      const { pool } = require('./database/connection');
       const result = await pool.query(
         'SELECT chat_id FROM chat_participants WHERE user_id = $1',
         [socket.userId]
@@ -132,7 +136,7 @@ io.on('connection', (socket) => {
   socket.on('join-chat', async (data) => {
     try {
       const { chatId } = data;
-      const pool = require('./database/connection');
+      const { pool } = require('./database/connection');
       
       // Verify user is participant
       const participantCheck = await pool.query(
@@ -154,7 +158,7 @@ io.on('connection', (socket) => {
     try {
       const { chatId, content, messageType = 'text' } = data;
       
-      const pool = require('./database/connection');
+      const { pool } = require('./database/connection');
       
       // Verify user is participant
       const participantCheck = await pool.query(
@@ -241,7 +245,29 @@ app.use('*', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// Start server only after database connection is verified
+const startServer = async () => {
+  try {
+    console.log('🚀 Starting server...');
+    
+    // Test database connection first
+    const dbConnected = await testConnection();
+    if (!dbConnected) {
+      console.error('💥 Server startup failed: Database connection failed');
+      process.exit(1);
+    }
+    
+    // Start the server
+    server.listen(PORT, () => {
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+    
+  } catch (error) {
+    console.error('💥 Server startup failed:', error.message);
+    process.exit(1);
+  }
+};
+
+// Start the server
+startServer();
