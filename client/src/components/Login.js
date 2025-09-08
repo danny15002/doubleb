@@ -49,6 +49,9 @@ const Login = () => {
               required
               disabled={loading}
               placeholder="Enter your username or email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
             />
           </div>
 

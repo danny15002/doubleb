@@ -76,6 +76,9 @@ const Register = () => {
               placeholder="Choose a username"
               minLength="3"
               maxLength="50"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
             />
           </div>
 

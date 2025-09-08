@@ -69,6 +69,17 @@
   cursor: not-allowed;
 }
 
+/* Username input specific styling */
+.form-group input[name="username"] {
+  text-transform: lowercase;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* Prevent auto-capitalization on mobile */
+input[autoCapitalize="none"] {
+  text-transform: none !important;
+}
+
 .auth-button {
   width: 100%;
   padding: 14px;

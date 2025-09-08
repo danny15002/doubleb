@@ -85,6 +85,9 @@ const NewChatModal = ({ isOpen, onClose, onCreateChat }) => {
                 placeholder="Enter username to message"
                 required
                 disabled={loading}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck="false"
               />
             </div>
           ) : (

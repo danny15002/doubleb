@@ -123,6 +123,17 @@
   cursor: not-allowed;
 }
 
+/* Username input specific styling */
+.form-group input[id="username"] {
+  text-transform: lowercase;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* Prevent auto-capitalization on mobile */
+input[autoCapitalize="none"] {
+  text-transform: none !important;
+}
+
 .modal-actions {
   display: flex;
   gap: 12px;
