@@ -1,7 +1,7 @@
 // Feature flags configuration
 module.exports = {
   // Registration control
-  REGISTRATION_ENABLED: true,
+  REGISTRATION_ENABLED: false,
   
   // Other feature flags can be added here
   // MAINTENANCE_MODE: false,

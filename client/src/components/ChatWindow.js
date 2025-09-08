@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, Send, MoreVertical, LogOut, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, LogOut, Trash2, Image as ImageIcon } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { getApiUrl } from '../config/api';
@@ -13,9 +13,11 @@ const ChatWindow = ({ chat, onBack }) => {
   const [loading, setLoading] = useState(true);
   const [typingUsers, setTypingUsers] = useState([]);
   const [showMenu, setShowMenu] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const menuRef = useRef(null);
+  const fileInputRef = useRef(null);
   const { socket, sendMessage, startTyping, stopTyping } = useSocket();
   const { user } = useAuth();
 
@@ -118,6 +120,61 @@ const ChatWindow = ({ chat, onBack }) => {
       setNewMessage('');
       stopTyping(chat.id);
     }
+  };
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Check file size (2MB limit)
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File size too large. Maximum 2MB allowed.');
+      return;
+    }
+
+    // Check if it's an image
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      return;
+    }
+
+    setUploadingImage(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      formData.append('caption', newMessage.trim());
+
+      const response = await fetch(getApiUrl(`/api/messages/${chat.id}/upload-image`), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Don't add the message locally - it will be received via Socket.IO
+        setNewMessage(''); // Clear the input
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to upload image');
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert('Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const triggerImageUpload = () => {
+    fileInputRef.current?.click();
   };
 
   const handleKeyPress = (e) => {
@@ -304,10 +361,28 @@ const ChatWindow = ({ chat, onBack }) => {
                       {message.sender_name || message.username}
                     </div>
                   )}
-                  <div 
-                    className="message-text"
-                    dangerouslySetInnerHTML={{ __html: message.content }}
-                  />
+                  {message.message_type === 'image' ? (
+                    <div className="message-image">
+                      {message.image_data && (
+                        <img 
+                          src={`data:${message.image_data.mimetype};base64,${message.image_data.data}`}
+                          alt={message.image_data.filename}
+                          style={{ maxWidth: '300px', maxHeight: '300px', borderRadius: '8px' }}
+                        />
+                      )}
+                      {message.content && (
+                        <div 
+                          className="message-text"
+                          dangerouslySetInnerHTML={{ __html: message.content }}
+                        />
+                      )}
+                    </div>
+                  ) : (
+                    <div 
+                      className="message-text"
+                      dangerouslySetInnerHTML={{ __html: message.content }}
+                    />
+                  )}
                   <span className="message-time">
                     {formatTime(message.created_at)}
                   </span>
@@ -321,6 +396,21 @@ const ChatWindow = ({ chat, onBack }) => {
 
       <div className="message-input-container">
         <div className="message-input-wrapper">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageUpload}
+            accept="image/*"
+            style={{ display: 'none' }}
+          />
+          <button 
+            className="image-upload-button"
+            onClick={triggerImageUpload}
+            disabled={uploadingImage}
+            title="Upload image"
+          >
+            <ImageIcon size={20} />
+          </button>
           <ReactQuill
             value={newMessage}
             onChange={setNewMessage}
@@ -334,11 +424,16 @@ const ChatWindow = ({ chat, onBack }) => {
           <button 
             className="send-button"
             onClick={handleSendMessage}
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || uploadingImage}
           >
             <Send size={20} />
           </button>
         </div>
+        {uploadingImage && (
+          <div className="upload-status">
+            Uploading image...
+          </div>
+        )}
       </div>
     </div>
   );

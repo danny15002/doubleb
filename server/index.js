@@ -11,6 +11,7 @@ const chatRoutes = require('./routes/chats');
 const messageRoutes = require('./routes/messages');
 const { authenticateToken } = require('./middleware/auth');
 const { testConnection } = require('./database/connection');
+const { setIO } = require('./socket/socketManager');
 
 const app = express();
 const server = createServer(app);
@@ -30,8 +31,8 @@ const io = new Server(server, {
   }
 });
 
-// Export io for use in routes
-module.exports = { io };
+// Set the io instance in the socket manager
+setIO(io);
 
 // Rate limiting
 const limiter = rateLimit({
@@ -175,10 +176,19 @@ io.on('connection', (socket) => {
       const result = await pool.query(`
         INSERT INTO messages (chat_id, sender_id, content, message_type)
         VALUES ($1, $2, $3, $4)
-        RETURNING id, content, message_type, created_at, updated_at
+        RETURNING id, content, message_type, image_data, created_at, updated_at
       `, [chatId, socket.userId, content, messageType]);
 
       const message = result.rows[0];
+
+      // Parse image_data if it exists
+      if (message.image_data && typeof message.image_data === 'string') {
+        try {
+          message.image_data = JSON.parse(message.image_data);
+        } catch (error) {
+          console.error('Error parsing image_data:', error);
+        }
+      }
 
       // Get chat information for notifications
       const chatResult = await pool.query(`
