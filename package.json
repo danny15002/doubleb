@@ -11,10 +11,16 @@
     "build:client": "cd client && npm run build",
     "build:server": "cd server && npm install",
     "start": "cd server && npm start",
-    "install-all": "npm install && cd server && npm install && cd ../client && npm install",
-    "postinstall": "npm run install-all"
+    "install-all": "npm install && cd server && npm install && cd ../client && npm install"
   },
-  "keywords": ["chat", "whatsapp", "clone", "react", "nodejs", "postgresql"],
+  "keywords": [
+    "chat",
+    "whatsapp",
+    "clone",
+    "react",
+    "nodejs",
+    "postgresql"
+  ],
   "author": "Daniel",
   "license": "MIT",
   "devDependencies": {

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
 import { LogOut, Search, Plus, MessageCircle, Trash2, Bell, BellOff } from 'lucide-react';
+import { getApiUrl } from '../config/api';
 import NewChatModal from './NewChatModal';
 import './ChatList.css';
 
@@ -22,7 +23,7 @@ const ChatList = ({ onChatSelect, selectedChat }) => {
 
   const fetchChats = useCallback(async () => {
     try {
-      const response = await fetch('/api/chats', {
+      const response = await fetch(getApiUrl('/api/chats'), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -119,7 +120,7 @@ const ChatList = ({ onChatSelect, selectedChat }) => {
         requestBody.name = groupName || 'New Group';
       }
 
-      const response = await fetch('/api/chats', {
+      const response = await fetch(getApiUrl('/api/chats'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -155,7 +156,7 @@ const ChatList = ({ onChatSelect, selectedChat }) => {
 
   const leaveChat = async (chatId) => {
     try {
-      const response = await fetch(`/api/chats/${chatId}/leave`, {
+      const response = await fetch(getApiUrl(`/api/chats/${chatId}/leave`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -181,7 +182,7 @@ const ChatList = ({ onChatSelect, selectedChat }) => {
 
   const deleteChat = async (chatId) => {
     try {
-      const response = await fetch(`/api/chats/${chatId}`, {
+      const response = await fetch(getApiUrl(`/api/chats/${chatId}`), {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`

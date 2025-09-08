@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, Send, MoreVertical, LogOut, Trash2 } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+import { getApiUrl } from '../config/api';
 import './ChatWindow.css';
 
 const ChatWindow = ({ chat, onBack }) => {
@@ -20,7 +21,7 @@ const ChatWindow = ({ chat, onBack }) => {
 
   const fetchMessages = useCallback(async () => {
     try {
-      const response = await fetch(`/api/messages/${chat.id}`, {
+      const response = await fetch(getApiUrl(`/api/messages/${chat.id}`), {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }

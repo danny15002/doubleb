@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { getApiUrl } from '../config/api';
 
 const AuthContext = createContext();
 
@@ -28,7 +29,7 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUser = async () => {
     try {
-      const response = await axios.get('/api/auth/me');
+      const response = await axios.get(getApiUrl('/api/auth/me'));
       setUser(response.data.user);
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -41,7 +42,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      const response = await axios.post('/api/auth/login', {
+      const response = await axios.post(getApiUrl('/api/auth/login'), {
         username,
         password
       });
@@ -61,7 +62,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (username, email, password, displayName) => {
     try {
-      const response = await axios.post('/api/auth/register', {
+      const response = await axios.post(getApiUrl('/api/auth/register'), {
         username,
         email,
         password,

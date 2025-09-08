@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
+import { config } from '../config/api';
 
 const SocketContext = createContext();
 
@@ -57,7 +58,7 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       const token = localStorage.getItem('token');
-      const newSocket = io(process.env.REACT_APP_SERVER_URL || 'http://localhost:5001', {
+      const newSocket = io(config.serverUrl, {
         auth: {
           token
         },
