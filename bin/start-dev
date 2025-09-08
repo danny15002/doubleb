@@ -185,7 +185,7 @@ cleanup_and_check_ports() {
     
     # Find available ports
     CLIENT_PORT=$(find_available_port 3000)
-    SERVER_PORT=$(find_available_port 5000)
+    SERVER_PORT=$(find_available_port 3001)
     
     # Export ports for use in the application
     export REACT_APP_SERVER_PORT=$SERVER_PORT

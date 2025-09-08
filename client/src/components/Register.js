@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { features } from '../config/features';
 import './Auth.css';
 
 const Register = () => {
@@ -14,8 +15,8 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
   
-  // Registration is temporarily disabled
-  const registrationDisabled = true;
+  // Use centralized feature flag
+  const registrationDisabled = !features.REGISTRATION_ENABLED;
 
   const handleChange = (e) => {
     setFormData({

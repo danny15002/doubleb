@@ -39,7 +39,18 @@ const ChatWindow = ({ chat, onBack }) => {
   }, [chat?.id]);
 
   const handleNewMessage = (message) => {
-    setMessages(prev => [...prev, message]);
+    // Only handle messages for the current chat
+    if (message.chat_id !== chat.id) {
+      return;
+    }
+    
+    // Normalize message structure - Socket.IO uses user_id, API uses sender_id
+    const normalizedMessage = {
+      ...message,
+      sender_id: message.user_id || message.sender_id,
+      sender_name: message.sender_name || message.username
+    };
+    setMessages(prev => [...prev, normalizedMessage]);
   };
 
   const handleUserTyping = useCallback((data) => {
@@ -280,22 +291,30 @@ const ChatWindow = ({ chat, onBack }) => {
             <p>No messages yet. Start the conversation!</p>
           </div>
         ) : (
-          messages.map((message, index) => (
-            <div
-              key={message.id}
-              className={`message ${message.sender_id === chat.currentUserId ? 'sent' : 'received'}`}
-            >
-              <div className="message-content">
-                <div 
-                  className="message-text"
-                  dangerouslySetInnerHTML={{ __html: message.content }}
-                />
-                <span className="message-time">
-                  {formatTime(message.created_at)}
-                </span>
+          messages.map((message, index) => {
+            const isOwnMessage = message.sender_id === user.id;
+            return (
+              <div
+                key={message.id}
+                className={`message ${isOwnMessage ? 'sent' : 'received'}`}
+              >
+                <div className="message-content">
+                  {!isOwnMessage && (
+                    <div className="message-sender">
+                      {message.sender_name || message.username}
+                    </div>
+                  )}
+                  <div 
+                    className="message-text"
+                    dangerouslySetInnerHTML={{ __html: message.content }}
+                  />
+                  <span className="message-time">
+                    {formatTime(message.created_at)}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
         <div ref={messagesEndRef} />
       </div>

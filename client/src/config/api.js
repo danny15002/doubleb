@@ -1,8 +1,8 @@
 // API Configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
-  (import.meta.env.PROD ? window.location.origin : 'http://localhost:5001');
+  (import.meta.env.PROD ? window.location.origin : 'http://localhost:3001');
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 
-  (import.meta.env.PROD ? window.location.origin : 'http://localhost:5001');
+  (import.meta.env.PROD ? window.location.origin : 'http://localhost:3001');
 
 export const config = {
   apiBaseUrl: API_BASE_URL,

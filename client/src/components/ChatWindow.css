@@ -169,6 +169,7 @@
   display: flex;
   margin-bottom: 15px;
   animation: fadeIn 0.3s ease;
+  align-items: flex-end;
 }
 
 @keyframes fadeIn {
@@ -193,9 +194,24 @@
   position: relative;
 }
 
+.message-sender {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #667eea;
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+
 .message.sent .message-content {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  margin-left: auto;
+}
+
+.message.received .message-content {
+  background: white;
+  color: #333;
+  margin-right: auto;
 }
 
 .message-text {

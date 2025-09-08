@@ -20,7 +20,7 @@
     "vite": "^5.0.8"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --port 3000",
     "build": "vite build",
     "preview": "vite preview"
   }
