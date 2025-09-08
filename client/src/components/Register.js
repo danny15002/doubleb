@@ -158,9 +158,10 @@ const Register = () => {
           <button 
             type="submit" 
             className="auth-button"
-            disabled={loading}
+            disabled={loading || registrationDisabled}
           >
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading ? 'Creating account...' : 
+             registrationDisabled ? 'Registration Disabled' : 'Create Account'}
           </button>
         </form>
 

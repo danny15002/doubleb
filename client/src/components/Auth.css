@@ -80,6 +80,23 @@ input[autoCapitalize="none"] {
   text-transform: none !important;
 }
 
+/* Registration disabled notice */
+.registration-disabled-notice {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 15px;
+  text-align: center;
+}
+
+.registration-disabled-notice p {
+  margin: 0;
+  color: #856404;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
 .auth-button {
   width: 100%;
   padding: 14px;
