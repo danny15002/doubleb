@@ -7,13 +7,20 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Register
+// Register - DISABLED
 router.post('/register', [
   body('username').isLength({ min: 3, max: 50 }).trim().escape(),
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 6 }),
   body('displayName').isLength({ min: 1, max: 100 }).trim().escape()
 ], async (req, res) => {
+  // Registration is temporarily disabled
+  return res.status(503).json({ 
+    error: 'Registration is temporarily disabled',
+    message: 'New user registration is currently not available. Please try again later.'
+  });
+  
+  /* DISABLED CODE - Keep for future re-enabling
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -77,6 +84,7 @@ router.post('/register', [
     console.error('Error stack:', error.stack);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
+  */ // END DISABLED CODE
 });
 
 // Login

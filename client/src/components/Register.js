@@ -13,6 +13,9 @@ const Register = () => {
   });
   const [loading, setLoading] = useState(false);
   const { register } = useAuth();
+  
+  // Registration is temporarily disabled
+  const registrationDisabled = true;
 
   const handleChange = (e) => {
     setFormData({
@@ -23,6 +26,12 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check if registration is disabled
+    if (registrationDisabled) {
+      alert('Registration is temporarily disabled. Please try again later.');
+      return;
+    }
     
     if (formData.password !== formData.confirmPassword) {
       alert('Passwords do not match');
@@ -60,6 +69,11 @@ const Register = () => {
         <div className="auth-header">
           <h1>BB Chat</h1>
           <p>Create your account to start chatting.</p>
+          {registrationDisabled && (
+            <div className="registration-disabled-notice">
+              <p>⚠️ Registration is temporarily disabled. Please try again later.</p>
+            </div>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form-content">
@@ -72,7 +86,7 @@ const Register = () => {
               value={formData.username}
               onChange={handleChange}
               required
-              disabled={loading}
+              disabled={loading || registrationDisabled}
               placeholder="Choose a username"
               minLength="3"
               maxLength="50"
@@ -91,7 +105,7 @@ const Register = () => {
               value={formData.email}
               onChange={handleChange}
               required
-              disabled={loading}
+              disabled={loading || registrationDisabled}
               placeholder="Enter your email"
             />
           </div>
@@ -105,7 +119,7 @@ const Register = () => {
               value={formData.displayName}
               onChange={handleChange}
               required
-              disabled={loading}
+              disabled={loading || registrationDisabled}
               placeholder="How should we call you?"
               maxLength="100"
             />
@@ -120,7 +134,7 @@ const Register = () => {
               value={formData.password}
               onChange={handleChange}
               required
-              disabled={loading}
+              disabled={loading || registrationDisabled}
               placeholder="Create a password"
               minLength="6"
             />
@@ -135,7 +149,7 @@ const Register = () => {
               value={formData.confirmPassword}
               onChange={handleChange}
               required
-              disabled={loading}
+              disabled={loading || registrationDisabled}
               placeholder="Confirm your password"
               minLength="6"
             />
