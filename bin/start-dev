@@ -198,7 +198,7 @@ cleanup_and_check_ports() {
         print_status "Updating configuration for custom ports..."
         
         # Update client package.json
-        sed -i.bak "s/\"start\": \"react-scripts start\"/\"start\": \"PORT=$CLIENT_PORT react-scripts start\"/" client/package.json
+        sed -i.bak "s/\"dev\": \"vite\"/\"dev\": \"vite --port $CLIENT_PORT\"/" client/package.json
         
         # Update server to use custom port
         if [ "$SERVER_PORT" != "5000" ]; then
