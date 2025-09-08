@@ -32,17 +32,21 @@ const ChatWindow = ({ chat, onBack }) => {
       if (response.ok) {
         const data = await response.json();
         setMessages(data.messages);
+      } else if (response.status === 404 || response.status === 403) {
+        // Chat not found or access denied - redirect back to chat list
+        console.log('Chat not found or access denied, redirecting...');
+        onBack();
       }
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
       setLoading(false);
     }
-  }, [chat?.id]);
+  }, [chat?.id, onBack]);
 
   const handleNewMessage = (message) => {
-    // Only handle messages for the current chat
-    if (message.chat_id !== chat.id) {
+    // Only handle messages for the current chat - compare as strings to avoid type mismatch
+    if (String(message.chat_id) !== String(chat.id)) {
       return;
     }
     
@@ -157,6 +161,10 @@ const ChatWindow = ({ chat, onBack }) => {
         const data = await response.json();
         // Don't add the message locally - it will be received via Socket.IO
         setNewMessage(''); // Clear the input
+      } else if (response.status === 404 || response.status === 403) {
+        // Chat not found or access denied - redirect back to chat list
+        console.log('Chat not found or access denied during image upload, redirecting...');
+        onBack();
       } else {
         const error = await response.json();
         alert(error.error || 'Failed to upload image');

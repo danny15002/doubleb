@@ -261,6 +261,15 @@ router.delete('/:chatId/leave', authenticateToken, async (req, res) => {
     // If no participants left, delete the chat entirely
     if (participantCount === 0) {
       await pool.query('DELETE FROM chats WHERE id = $1', [chatId]);
+      
+      // Notify all users that the chat was deleted
+      const { getIO } = require('../socket/socketManager');
+      const io = getIO();
+      io.emit('chat-deleted', {
+        chatId: chatId,
+        chatName: chat.name,
+        chatType: chat.type
+      });
     }
 
     res.json({ 
@@ -302,6 +311,15 @@ router.delete('/:chatId', authenticateToken, async (req, res) => {
 
     // Delete chat (this will cascade delete messages and participants due to foreign key constraints)
     await pool.query('DELETE FROM chats WHERE id = $1', [chatId]);
+
+    // Notify all users that the chat was deleted
+    const { getIO } = require('../socket/socketManager');
+    const io = getIO();
+    io.emit('chat-deleted', {
+      chatId: chatId,
+      chatName: chat.name,
+      chatType: chat.type
+    });
 
     res.json({ 
       message: 'Chat deleted successfully',

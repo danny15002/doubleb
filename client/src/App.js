@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -10,13 +10,32 @@ import ChatWindow from './components/ChatWindow';
 import './App.css';
 
 function ChatApp() {
-  const { setCurrentChat: setSocketCurrentChat } = useSocket();
+  const { setCurrentChat: setSocketCurrentChat, socket } = useSocket();
   const [currentChat, setCurrentChat] = useState(null);
 
   const handleChatSelect = (chat) => {
     setCurrentChat(chat);
     setSocketCurrentChat(chat?.id || null);
   };
+
+  // Handle chat deletion events
+  useEffect(() => {
+    if (socket) {
+      const handleChatDeleted = (data) => {
+        // If the current chat was deleted, redirect to chat list
+        if (currentChat && currentChat.id === data.chatId) {
+          setCurrentChat(null);
+          setSocketCurrentChat(null);
+        }
+      };
+
+      socket.on('chat-deleted', handleChatDeleted);
+
+      return () => {
+        socket.off('chat-deleted', handleChatDeleted);
+      };
+    }
+  }, [socket, currentChat, setSocketCurrentChat]);
 
   return (
     <div className="app">

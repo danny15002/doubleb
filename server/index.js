@@ -137,6 +137,7 @@ io.on('connection', (socket) => {
   socket.on('join-chat', async (data) => {
     try {
       const { chatId } = data;
+      console.log(`User ${socket.user.username} attempting to join chat ${chatId}`);
       const { pool } = require('./database/connection');
       
       // Verify user is participant
@@ -147,7 +148,9 @@ io.on('connection', (socket) => {
 
       if (participantCheck.rows.length > 0) {
         socket.join(`chat-${chatId}`);
-        console.log(`User ${socket.user.username} joined chat ${chatId}`);
+        console.log(`User ${socket.user.username} successfully joined chat ${chatId}`);
+      } else {
+        console.log(`User ${socket.user.username} denied access to chat ${chatId}`);
       }
     } catch (error) {
       console.error('Error joining chat:', error);

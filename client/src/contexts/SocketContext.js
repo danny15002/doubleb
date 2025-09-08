@@ -153,6 +153,32 @@ export const SocketProvider = ({ children }) => {
         }
       });
 
+      // Handle chat deletion notifications
+      newSocket.on('chat-deleted', (data) => {
+        const chatName = data.chatName || `Chat ${data.chatId}`;
+        
+        // Show notification
+        toast(`${chatName} has been deleted`, {
+          duration: 4000,
+          position: 'top-right',
+          style: {
+            background: '#ff4757',
+            color: '#fff',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            fontSize: '14px',
+            maxWidth: '300px',
+          },
+        });
+        
+        // Show browser notification
+        showBrowserNotification('Chat Deleted', {
+          body: `${chatName} has been deleted`,
+          tag: `chat-deleted-${data.chatId}`,
+          requireInteraction: false
+        });
+      });
+
       setSocket(newSocket);
 
       return () => {
@@ -181,6 +207,9 @@ export const SocketProvider = ({ children }) => {
 
   const setCurrentChat = (chatId) => {
     setCurrentChatId(chatId);
+    if (socket && connected && chatId) {
+      socket.emit('join-chat', { chatId });
+    }
   };
 
   const value = {
