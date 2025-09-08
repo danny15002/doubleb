@@ -18,11 +18,11 @@ if (process.env.DATABASE_URL) {
 } else {
   // Fallback to individual environment variables
   dbConfig = {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
+    host: process.env.PGHOST || 'localhost',
+    port: process.env.PGPORT || 5432,
     database: process.env.DB_NAME || 'bb_chat',
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
+    user: process.env.PGUSER,
+    password: process.env.PGPASSWORD,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
   };
 }
