@@ -24,34 +24,48 @@ export const SocketProvider = ({ children }) => {
   // Request notification permission
   useEffect(() => {
     if ('Notification' in window) {
-      if (Notification.permission === 'default') {
+      setNotificationPermission(Notification.permission);
+      
+      // Only request permission if it's default and user is authenticated
+      if (Notification.permission === 'default' && user) {
         Notification.requestPermission().then(permission => {
           setNotificationPermission(permission);
         });
-      } else {
-        setNotificationPermission(Notification.permission);
       }
     }
+  }, [user]);
+
+  const requestNotificationPermission = useCallback(async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      return permission;
+    }
+    return 'denied';
   }, []);
 
   const showBrowserNotification = useCallback((title, options) => {
     if (notificationPermission === 'granted' && document.hidden) {
-      const notification = new Notification(title, {
-        icon: '/favicon.ico',
-        badge: '/favicon.ico',
-        ...options
-      });
-      
-      // Auto-close after 5 seconds
-      setTimeout(() => {
-        notification.close();
-      }, 5000);
-      
-      // Focus window when notification is clicked
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-      };
+      try {
+        const notification = new Notification(title, {
+          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
+          badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
+          ...options
+        });
+        
+        // Auto-close after 5 seconds
+        setTimeout(() => {
+          notification.close();
+        }, 5000);
+        
+        // Focus window when notification is clicked
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      } catch (error) {
+        console.error('Failed to show notification:', error);
+      }
     }
   }, [notificationPermission]);
 
@@ -218,7 +232,9 @@ export const SocketProvider = ({ children }) => {
     sendMessage,
     startTyping,
     stopTyping,
-    setCurrentChat
+    setCurrentChat,
+    notificationPermission,
+    requestNotificationPermission
   };
 
   return (
@@ -227,3 +243,4 @@ export const SocketProvider = ({ children }) => {
     </SocketContext.Provider>
   );
 };
+

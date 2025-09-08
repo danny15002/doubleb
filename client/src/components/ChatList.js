@@ -11,9 +11,8 @@ const ChatList = ({ onChatSelect, selectedChat }) => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showNewChatModal, setShowNewChatModal] = useState(false);
-  const [notificationPermission, setNotificationPermission] = useState('default');
   const { user, logout } = useAuth();
-  const { socket } = useSocket();
+  const { socket, notificationPermission, requestNotificationPermission } = useSocket();
 
   const stripHtml = (html) => {
     const tmp = document.createElement('div');
@@ -79,22 +78,9 @@ const ChatList = ({ onChatSelect, selectedChat }) => {
     }
   }, [user?.id, fetchChats]);
 
-  const requestNotificationPermission = async () => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      setNotificationPermission(permission);
-    }
-  };
-
   useEffect(() => {
     fetchChats();
   }, [fetchChats]);
-
-  useEffect(() => {
-    if ('Notification' in window) {
-      setNotificationPermission(Notification.permission);
-    }
-  }, []);
 
   useEffect(() => {
     if (socket) {
@@ -270,6 +256,22 @@ const ChatList = ({ onChatSelect, selectedChat }) => {
           >
             {notificationPermission === 'denied' ? <BellOff size={20} /> : <Bell size={20} />}
           </button>
+          {notificationPermission === 'granted' && (
+            <button 
+              className="test-notification-button"
+              onClick={() => {
+                if ('Notification' in window) {
+                  new Notification('Test Notification', {
+                    body: 'This is a test notification from BB Chat',
+                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>'
+                  });
+                }
+              }}
+              title="Test notification"
+            >
+              🔔
+            </button>
+          )}
           <button className="logout-button" onClick={logout} title="Logout">
             <LogOut size={20} />
           </button>
