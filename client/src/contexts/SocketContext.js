@@ -97,9 +97,15 @@ export const SocketProvider = ({ children }) => {
 
       // Handle new messages with notifications
       newSocket.on('new-message', (message) => {
+        // Check if this is the user's own message or current chat
+        const isOwnMessage = String(message.user_id) === String(user.id);
+        const isCurrentChat = String(message.chat_id) === String(currentChatId);
+        
         // Only show notification if the message is not from the current user
         // and not from the currently viewed chat
-        if (message.user_id !== user.id && message.chat_id !== currentChatId) {
+        // Use strict equality and ensure both values are properly compared
+        
+        if (!isOwnMessage && !isCurrentChat) {
           // Get chat name from the message or use a default
           const chatName = message.chat_name || 'Unknown Chat';
           const senderName = message.username || 'Someone';
