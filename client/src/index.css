@@ -13,6 +13,10 @@ body {
   background-color: #f0f2f5;
   color: #333;
   overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
 }
 
 #root {
@@ -24,6 +28,19 @@ body {
 @media (max-width: 768px) {
   body {
     font-size: 14px;
+  }
+  
+  /* Prevent zoom on input focus */
+  input, textarea, select {
+    font-size: 16px !important;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  
+  /* Prevent zoom on touch events */
+  * {
+    touch-action: manipulation;
   }
 }
 
