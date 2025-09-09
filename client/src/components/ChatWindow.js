@@ -532,6 +532,14 @@ const ChatWindow = ({ chat, onBack }) => {
     const now = new Date().getTime();
     const DOUBLE_TAP_DELAY = 300; // 300ms between taps
 
+    console.log('handleTap called:', {
+      messageId: message.id,
+      lastTappedMessage: lastTappedMessage?.id,
+      lastTapTime,
+      timeDiff: lastTappedMessage ? (now - lastTapTime) : 'N/A',
+      isDoubleTap: lastTappedMessage && lastTappedMessage.id === message.id && (now - lastTapTime) < DOUBLE_TAP_DELAY
+    });
+
     // Clear any existing timeout
     if (tapTimeoutRef.current) {
       clearTimeout(tapTimeoutRef.current);
@@ -541,16 +549,19 @@ const ChatWindow = ({ chat, onBack }) => {
     // Check if this is a double tap on the same message
     if (lastTappedMessage && lastTappedMessage.id === message.id && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
       // Double tap detected - copy message text
+      console.log('DOUBLE TAP DETECTED - Copying message');
       copyMessageText(message);
       setLastTappedMessage(null);
       setLastTapTime(0);
     } else {
       // Single tap - just record the tap for potential double tap
+      console.log('SINGLE TAP - Recording for potential double tap');
       setLastTappedMessage(message);
       setLastTapTime(now);
       
       // Set timeout to clear the tap state if no second tap comes
       tapTimeoutRef.current = setTimeout(() => {
+        console.log('Timeout reached - clearing tap state');
         setLastTappedMessage(null);
         setLastTapTime(0);
       }, DOUBLE_TAP_DELAY);
@@ -684,6 +695,7 @@ const ChatWindow = ({ chat, onBack }) => {
 
   // Touch events for mobile
   const handleTouchStart = (e, message) => {
+    console.log('handleTouchStart called for message:', message.id);
     const touch = e.touches[0];
     setSwipeStartX(touch.clientX);
     setSwipeStartY(touch.clientY);
@@ -696,6 +708,12 @@ const ChatWindow = ({ chat, onBack }) => {
   };
 
   const handleTouchEnd = (e, message) => {
+    console.log('handleTouchEnd called for message:', message.id, {
+      swipeStartX,
+      swipeStartY,
+      longPressTimer: !!longPressTimer
+    });
+
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       setLongPressTimer(null);
@@ -703,6 +721,7 @@ const ChatWindow = ({ chat, onBack }) => {
 
     if (!swipeStartX || !swipeStartY) {
       // No swipe detected, handle as tap
+      console.log('No swipe detected, calling handleTap');
       handleTap(message);
       return;
     }
@@ -712,12 +731,21 @@ const ChatWindow = ({ chat, onBack }) => {
     const deltaY = touch.clientY - swipeStartY;
     const minSwipeDistance = 50;
 
+    console.log('Swipe calculation:', {
+      deltaX,
+      deltaY,
+      minSwipeDistance,
+      isSwipe: Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance
+    });
+
     // Check if it's a horizontal swipe (left or right) for quoting
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
       // Quote the message
+      console.log('Swipe detected, quoting message');
       setQuotedMessage(message);
     } else {
       // Small movement, treat as tap
+      console.log('Small movement, calling handleTap');
       handleTap(message);
     }
 
