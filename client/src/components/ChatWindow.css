@@ -170,11 +170,29 @@
   margin-bottom: 15px;
   animation: fadeIn 0.3s ease;
   align-items: flex-end;
+  /* Prevent text selection on mobile to avoid conflicts with double tap */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Improve touch handling */
+  touch-action: manipulation;
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { 
+    opacity: 0; 
+    transform: translateX(100%); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateX(0); 
+  }
 }
 
 .message.sent {

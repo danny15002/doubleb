@@ -528,30 +528,29 @@ const ChatWindow = ({ chat, onBack }) => {
     setQuotedMessage(null);
   };
 
-  const handleDoubleTap = (message) => {
-    console.log('handleDoubleTap called for message:', message.id);
+  const handleTap = (message) => {
     const now = new Date().getTime();
     const DOUBLE_TAP_DELAY = 300; // 300ms between taps
 
     // Clear any existing timeout
     if (tapTimeoutRef.current) {
       clearTimeout(tapTimeoutRef.current);
+      tapTimeoutRef.current = null;
     }
 
+    // Check if this is a double tap on the same message
     if (lastTappedMessage && lastTappedMessage.id === message.id && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
       // Double tap detected - copy message text
-      console.log('Double tap detected! Copying message...');
       copyMessageText(message);
       setLastTappedMessage(null);
       setLastTapTime(0);
     } else {
-      // First tap - set up timeout to clear if no second tap
-      console.log('First tap detected, waiting for second tap...');
+      // Single tap - just record the tap for potential double tap
       setLastTappedMessage(message);
       setLastTapTime(now);
       
+      // Set timeout to clear the tap state if no second tap comes
       tapTimeoutRef.current = setTimeout(() => {
-        console.log('Timeout reached, clearing tap state');
         setLastTappedMessage(null);
         setLastTapTime(0);
       }, DOUBLE_TAP_DELAY);
@@ -572,9 +571,27 @@ const ChatWindow = ({ chat, onBack }) => {
       
       if (textToCopy.trim()) {
         await navigator.clipboard.writeText(textToCopy.trim());
-        // You could add a toast notification here if you have one
         console.log('Message copied to clipboard:', textToCopy.trim());
-        alert('Message copied to clipboard!'); // Temporary visual feedback
+        // Show a brief success message without blocking the UI
+        const notification = document.createElement('div');
+        notification.textContent = 'Message copied!';
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #4CAF50;
+          color: white;
+          padding: 12px 16px;
+          border-radius: 8px;
+          z-index: 1000;
+          font-size: 14px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+          animation: slideIn 0.3s ease;
+        `;
+        document.body.appendChild(notification);
+        setTimeout(() => {
+          notification.remove();
+        }, 2000);
       }
     } catch (err) {
       console.error('Failed to copy text: ', err);
@@ -585,7 +602,26 @@ const ChatWindow = ({ chat, onBack }) => {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
-      alert('Message copied to clipboard!'); // Temporary visual feedback
+      
+      // Show a brief success message without blocking the UI
+      const notification = document.createElement('div');
+      notification.textContent = 'Message copied!';
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #4CAF50;
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        z-index: 1000;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      `;
+      document.body.appendChild(notification);
+      setTimeout(() => {
+        notification.remove();
+      }, 2000);
     }
   };
 
@@ -633,9 +669,9 @@ const ChatWindow = ({ chat, onBack }) => {
       setLongPressTimer(null);
     }
     
-    // Handle double tap detection on mouse up (for desktop)
+    // Handle tap detection on mouse up (for desktop)
     if (message) {
-      handleDoubleTap(message);
+      handleTap(message);
     }
   };
 
@@ -666,8 +702,8 @@ const ChatWindow = ({ chat, onBack }) => {
     }
 
     if (!swipeStartX || !swipeStartY) {
-      // No swipe detected, check for double tap
-      handleDoubleTap(message);
+      // No swipe detected, handle as tap
+      handleTap(message);
       return;
     }
 
@@ -681,8 +717,8 @@ const ChatWindow = ({ chat, onBack }) => {
       // Quote the message
       setQuotedMessage(message);
     } else {
-      // Small movement, treat as tap for double tap detection
-      handleDoubleTap(message);
+      // Small movement, treat as tap
+      handleTap(message);
     }
 
     setSwipeStartX(null);
