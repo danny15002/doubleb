@@ -286,6 +286,23 @@
   border: none;
   font-size: 0.95rem;
   line-height: 1.4;
+  /* iOS autocorrect improvements */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  /* Allow autocorrect to work properly */
+  -webkit-appearance: none;
+  appearance: none;
+  /* Improve text input behavior on iOS */
+  -webkit-tap-highlight-color: transparent;
+  /* Ensure proper autocorrect behavior */
+  autocorrect: on;
+  autocapitalize: sentences;
+  spellcheck: true;
 }
 
 .message-input .ql-editor.ql-blank::before {

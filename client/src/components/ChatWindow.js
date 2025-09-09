@@ -26,6 +26,7 @@ const ChatWindow = ({ chat, onBack }) => {
   const typingTimeoutRef = useRef(null);
   const menuRef = useRef(null);
   const fileInputRef = useRef(null);
+  const quillRef = useRef(null);
   const canvasRef = useRef(null);
   const { socket, sendMessage, startTyping, stopTyping } = useSocket();
   const { user } = useAuth();
@@ -127,6 +128,25 @@ const ChatWindow = ({ chat, onBack }) => {
       };
     }
   }, [socket, handleUserTyping, handleUserStoppedTyping, handleReactionUpdate, handleStatusUpdate]);
+
+  // Configure Quill editor for better iOS compatibility
+  useEffect(() => {
+    if (quillRef.current) {
+      const quill = quillRef.current.getEditor();
+      const editor = quill.root;
+      
+      // Set proper attributes for iOS autocorrect
+      editor.setAttribute('autocorrect', 'on');
+      editor.setAttribute('autocapitalize', 'sentences');
+      editor.setAttribute('spellcheck', 'true');
+      editor.setAttribute('autocomplete', 'on');
+      
+      // Improve iOS keyboard behavior
+      editor.style.webkitUserSelect = 'text';
+      editor.style.webkitAppearance = 'none';
+      editor.style.webkitTapHighlightColor = 'transparent';
+    }
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -652,6 +672,17 @@ const ChatWindow = ({ chat, onBack }) => {
       ['link'],
       ['clean']
     ],
+    keyboard: {
+      bindings: {
+        // Allow normal keyboard behavior for autocorrect
+        enter: {
+          key: 13,
+          handler: function(range, context) {
+            return true; // Allow default behavior
+          }
+        }
+      }
+    }
   };
 
   const quillFormats = [
@@ -852,6 +883,7 @@ const ChatWindow = ({ chat, onBack }) => {
             <ImageIcon size={20} />
           </button>
           <ReactQuill
+            ref={quillRef}
             value={newMessage}
             onChange={setNewMessage}
             onKeyPress={handleKeyPress}
@@ -860,6 +892,12 @@ const ChatWindow = ({ chat, onBack }) => {
             modules={quillModules}
             formats={quillFormats}
             className="message-input"
+            style={{
+              backgroundColor: 'transparent'
+            }}
+            theme="snow"
+            bounds="self"
+            scrollingContainer="null"
           />
           <button 
             className="send-button"
