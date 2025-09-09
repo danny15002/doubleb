@@ -253,6 +253,10 @@
   padding: 15px 20px;
   background: white;
   border-top: 1px solid #e0e0e0;
+  /* Ensure input container is interactive */
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .message-input-wrapper {
@@ -264,6 +268,8 @@
   padding: 8px 15px;
   border: 1px solid #e0e0e0;
   transition: border-color 0.2s ease;
+  /* Ensure wrapper allows input interaction */
+  pointer-events: auto;
 }
 
 .message-input-wrapper:focus-within {
@@ -290,10 +296,11 @@
   -webkit-text-size-adjust: 100%;
   -ms-text-size-adjust: 100%;
   text-size-adjust: 100%;
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  -ms-user-select: text;
-  user-select: text;
+  /* Force text selection to work in input */
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
   /* Allow autocorrect to work properly */
   -webkit-appearance: none;
   appearance: none;
@@ -303,11 +310,48 @@
   autocorrect: on;
   autocapitalize: sentences;
   spellcheck: true;
+  /* Ensure input is editable */
+  pointer-events: auto !important;
+  cursor: text !important;
+  /* Override any parent user-select rules */
+  -webkit-user-modify: read-write-plaintext-only;
+  user-modify: read-write-plaintext-only;
 }
 
 .message-input .ql-editor.ql-blank::before {
   color: #999;
   font-style: normal;
+}
+
+/* Textarea input styles */
+.message-input-textarea {
+  width: 100%;
+  min-height: 40px;
+  max-height: 120px;
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 14px;
+  line-height: 1.4;
+  font-family: inherit;
+  background: transparent;
+  padding: 8px 0;
+  color: #333;
+  /* Ensure textarea is editable */
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+  pointer-events: auto !important;
+  cursor: text !important;
+  /* iOS autocorrect */
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  /* Prevent zoom on mobile */
+  font-size: 16px !important;
 }
 
 .message-input .ql-toolbar {

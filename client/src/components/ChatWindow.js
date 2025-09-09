@@ -882,22 +882,27 @@ const ChatWindow = ({ chat, onBack }) => {
           >
             <ImageIcon size={20} />
           </button>
-          <ReactQuill
-            ref={quillRef}
+          <textarea
             value={newMessage}
-            onChange={setNewMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            onChangeSelection={handleTyping}
+            onFocus={handleTyping}
             placeholder="Type a message..."
-            modules={quillModules}
-            formats={quillFormats}
-            className="message-input"
+            className="message-input-textarea"
             style={{
-              backgroundColor: 'transparent'
+              width: '100%',
+              minHeight: '40px',
+              maxHeight: '120px',
+              border: 'none',
+              outline: 'none',
+              resize: 'none',
+              fontSize: '14px',
+              lineHeight: '1.4',
+              fontFamily: 'inherit',
+              backgroundColor: 'transparent',
+              padding: '8px 0',
+              color: '#333'
             }}
-            theme="snow"
-            bounds="self"
-            scrollingContainer="null"
           />
           <button 
             className="send-button"
