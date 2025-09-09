@@ -20,6 +20,7 @@ const ChatWindow = ({ chat, onBack }) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedMessageForReaction, setSelectedMessageForReaction] = useState(null);
   const [longPressTimer, setLongPressTimer] = useState(null);
+  const LONG_PRESS_DELAY = 800; // Increased from 500ms to 800ms
   const [customEmoji, setCustomEmoji] = useState('');
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -507,7 +508,7 @@ const ChatWindow = ({ chat, onBack }) => {
     const timer = setTimeout(() => {
       setSelectedMessageForReaction(message);
       setShowEmojiPicker(true);
-    }, 500); // 500ms long press
+    }, LONG_PRESS_DELAY); // 800ms long press
     setLongPressTimer(timer);
   };
 
@@ -534,7 +535,7 @@ const ChatWindow = ({ chat, onBack }) => {
     const timer = setTimeout(() => {
       setSelectedMessageForReaction(message);
       setShowEmojiPicker(true);
-    }, 500); // 500ms long press
+    }, LONG_PRESS_DELAY); // 800ms long press
     setLongPressTimer(timer);
   };
 
