@@ -259,6 +259,121 @@ io.on('connection', (socket) => {
     });
   });
 
+  // Handle message reactions
+  socket.on('add-reaction', async (data) => {
+    try {
+      const { messageId, emoji } = data;
+      const { pool } = require('./database/connection');
+
+      // Check if message exists and user has access
+      const messageCheck = await pool.query(`
+        SELECT m.id, m.chat_id 
+        FROM messages m
+        JOIN chat_participants cp ON m.chat_id = cp.chat_id
+        WHERE m.id = $1 AND cp.user_id = $2
+      `, [messageId, socket.userId]);
+
+      if (messageCheck.rows.length === 0) {
+        socket.emit('error', { message: 'Message not found or access denied' });
+        return;
+      }
+
+      // Add reaction
+      await pool.query(`
+        INSERT INTO message_reactions (message_id, user_id, emoji)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (message_id, user_id, emoji) 
+        DO UPDATE SET created_at = CURRENT_TIMESTAMP
+      `, [messageId, socket.userId, emoji]);
+
+      // Get updated reactions
+      const reactionsResult = await pool.query(`
+        SELECT 
+          mr.emoji,
+          COUNT(*) as count,
+          ARRAY_AGG(
+            JSON_BUILD_OBJECT(
+              'user_id', mr.user_id,
+              'username', u.username,
+              'display_name', u.display_name,
+              'created_at', mr.created_at
+            )
+          ) as users
+        FROM message_reactions mr
+        JOIN users u ON mr.user_id = u.id
+        WHERE mr.message_id = $1
+        GROUP BY mr.emoji
+        ORDER BY COUNT(*) DESC, mr.emoji
+      `, [messageId]);
+
+      // Broadcast reaction update to all participants in the chat
+      const chatId = messageCheck.rows[0].chat_id;
+      io.to(`chat-${chatId}`).emit('reaction-updated', {
+        messageId,
+        reactions: reactionsResult.rows
+      });
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+      socket.emit('error', { message: 'Failed to add reaction' });
+    }
+  });
+
+  socket.on('remove-reaction', async (data) => {
+    try {
+      const { messageId, emoji } = data;
+      const { pool } = require('./database/connection');
+
+      // Check if message exists and user has access
+      const messageCheck = await pool.query(`
+        SELECT m.id, m.chat_id 
+        FROM messages m
+        JOIN chat_participants cp ON m.chat_id = cp.chat_id
+        WHERE m.id = $1 AND cp.user_id = $2
+      `, [messageId, socket.userId]);
+
+      if (messageCheck.rows.length === 0) {
+        socket.emit('error', { message: 'Message not found or access denied' });
+        return;
+      }
+
+      // Remove reaction
+      await pool.query(`
+        DELETE FROM message_reactions 
+        WHERE message_id = $1 AND user_id = $2 AND emoji = $3
+      `, [messageId, socket.userId, emoji]);
+
+      // Get updated reactions
+      const reactionsResult = await pool.query(`
+        SELECT 
+          mr.emoji,
+          COUNT(*) as count,
+          ARRAY_AGG(
+            JSON_BUILD_OBJECT(
+              'user_id', mr.user_id,
+              'username', u.username,
+              'display_name', u.display_name,
+              'created_at', mr.created_at
+            )
+          ) as users
+        FROM message_reactions mr
+        JOIN users u ON mr.user_id = u.id
+        WHERE mr.message_id = $1
+        GROUP BY mr.emoji
+        ORDER BY COUNT(*) DESC, mr.emoji
+      `, [messageId]);
+
+      // Broadcast reaction update to all participants in the chat
+      const chatId = messageCheck.rows[0].chat_id;
+      io.to(`chat-${chatId}`).emit('reaction-updated', {
+        messageId,
+        reactions: reactionsResult.rows
+      });
+    } catch (error) {
+      console.error('Error removing reaction:', error);
+      socket.emit('error', { message: 'Failed to remove reaction' });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log(`User ${socket.user.username} disconnected`);
   });
@@ -275,7 +390,7 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
 // Start server only after database connection is verified
 const startServer = async () => {

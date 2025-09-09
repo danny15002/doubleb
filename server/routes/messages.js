@@ -55,7 +55,37 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
         u.id as sender_id,
         u.username,
         u.display_name as sender_name,
-        u.avatar_url as sender_avatar
+        u.avatar_url as sender_avatar,
+        COALESCE(
+          (
+            SELECT JSON_AGG(
+              JSON_BUILD_OBJECT(
+                'emoji', mr.emoji,
+                'count', mr.count,
+                'users', mr.users
+              )
+            )
+            FROM (
+              SELECT 
+                mr.emoji,
+                COUNT(*) as count,
+                ARRAY_AGG(
+                  JSON_BUILD_OBJECT(
+                    'user_id', mr.user_id,
+                    'username', u2.username,
+                    'display_name', u2.display_name,
+                    'created_at', mr.created_at
+                  )
+                ) as users
+              FROM message_reactions mr
+              JOIN users u2 ON mr.user_id = u2.id
+              WHERE mr.message_id = m.id
+              GROUP BY mr.emoji
+              ORDER BY COUNT(*) DESC, mr.emoji
+            ) mr
+          ),
+          '[]'::json
+        ) as reactions
       FROM messages m
       JOIN users u ON m.sender_id = u.id
       WHERE m.chat_id = $1
@@ -80,6 +110,18 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
           content: row.quoted_content,
           sender_name: row.quoted_sender_name
         };
+      }
+      
+      // Parse reactions if they exist
+      if (row.reactions && typeof row.reactions === 'string') {
+        try {
+          row.reactions = JSON.parse(row.reactions);
+        } catch (error) {
+          console.error('Error parsing reactions:', error);
+          row.reactions = [];
+        }
+      } else if (!row.reactions) {
+        row.reactions = [];
       }
       
       return row;
@@ -283,6 +325,129 @@ router.post('/:messageId/read', authenticateToken, async (req, res) => {
     res.json({ message: 'Message marked as read' });
   } catch (error) {
     console.error('Mark message read error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Add reaction to message
+router.post('/:messageId/reactions', authenticateToken, [
+  body('emoji').notEmpty().trim().isLength({ min: 1, max: 10 })
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { messageId } = req.params;
+    const { emoji } = req.body;
+
+    // Check if message exists and user has access
+    const messageCheck = await pool.query(`
+      SELECT m.id, m.chat_id 
+      FROM messages m
+      JOIN chat_participants cp ON m.chat_id = cp.chat_id
+      WHERE m.id = $1 AND cp.user_id = $2
+    `, [messageId, req.user.id]);
+
+    if (messageCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found or access denied' });
+    }
+
+    // Add or update reaction
+    const result = await pool.query(`
+      INSERT INTO message_reactions (message_id, user_id, emoji)
+      VALUES ($1, $2, $3)
+      ON CONFLICT (message_id, user_id, emoji) 
+      DO UPDATE SET created_at = CURRENT_TIMESTAMP
+      RETURNING id, emoji, created_at
+    `, [messageId, req.user.id, emoji]);
+
+    res.json({ 
+      message: 'Reaction added successfully',
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Add reaction error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Remove reaction from message
+router.delete('/:messageId/reactions/:emoji', authenticateToken, async (req, res) => {
+  try {
+    const { messageId, emoji } = req.params;
+
+    // Check if message exists and user has access
+    const messageCheck = await pool.query(`
+      SELECT m.id, m.chat_id 
+      FROM messages m
+      JOIN chat_participants cp ON m.chat_id = cp.chat_id
+      WHERE m.id = $1 AND cp.user_id = $2
+    `, [messageId, req.user.id]);
+
+    if (messageCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found or access denied' });
+    }
+
+    // Remove reaction
+    const result = await pool.query(`
+      DELETE FROM message_reactions 
+      WHERE message_id = $1 AND user_id = $2 AND emoji = $3
+      RETURNING id
+    `, [messageId, req.user.id, emoji]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Reaction not found' });
+    }
+
+    res.json({ message: 'Reaction removed successfully' });
+  } catch (error) {
+    console.error('Remove reaction error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get reactions for a message
+router.get('/:messageId/reactions', authenticateToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+
+    // Check if message exists and user has access
+    const messageCheck = await pool.query(`
+      SELECT m.id, m.chat_id 
+      FROM messages m
+      JOIN chat_participants cp ON m.chat_id = cp.chat_id
+      WHERE m.id = $1 AND cp.user_id = $2
+    `, [messageId, req.user.id]);
+
+    if (messageCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found or access denied' });
+    }
+
+    // Get reactions grouped by emoji
+    const result = await pool.query(`
+      SELECT 
+        mr.emoji,
+        COUNT(*) as count,
+        ARRAY_AGG(
+          JSON_BUILD_OBJECT(
+            'user_id', mr.user_id,
+            'username', u.username,
+            'display_name', u.display_name,
+            'created_at', mr.created_at
+          )
+        ) as users
+      FROM message_reactions mr
+      JOIN users u ON mr.user_id = u.id
+      WHERE mr.message_id = $1
+      GROUP BY mr.emoji
+      ORDER BY COUNT(*) DESC, mr.emoji
+    `, [messageId]);
+
+    res.json({ reactions: result.rows });
+  } catch (error) {
+    console.error('Get reactions error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

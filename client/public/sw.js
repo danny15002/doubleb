@@ -51,10 +51,16 @@ self.addEventListener('fetch', (event) => {
 
   // Handle API requests with network-first strategy
   if (url.pathname.startsWith('/api/')) {
+    // Don't cache POST, PUT, DELETE requests
+    if (request.method !== 'GET') {
+      event.respondWith(fetch(request));
+      return;
+    }
+    
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache successful API responses
+          // Cache successful GET responses only
           if (response.status === 200) {
             const responseClone = response.clone();
             caches.open(DYNAMIC_CACHE).then((cache) => {

@@ -17,6 +17,10 @@ const ChatWindow = ({ chat, onBack }) => {
   const [quotedMessage, setQuotedMessage] = useState(null);
   const [swipeStartX, setSwipeStartX] = useState(null);
   const [swipeStartY, setSwipeStartY] = useState(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedMessageForReaction, setSelectedMessageForReaction] = useState(null);
+  const [longPressTimer, setLongPressTimer] = useState(null);
+  const [customEmoji, setCustomEmoji] = useState('');
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const menuRef = useRef(null);
@@ -35,6 +39,7 @@ const ChatWindow = ({ chat, onBack }) => {
       
       if (response.ok) {
         const data = await response.json();
+        console.log('Fetched messages with reactions:', data.messages);
         setMessages(data.messages);
       } else if (response.status === 404 || response.status === 403) {
         // Chat not found or access denied - redirect back to chat list
@@ -86,19 +91,30 @@ const ChatWindow = ({ chat, onBack }) => {
     }
   }, [chat, fetchMessages]);
 
+  const handleReactionUpdate = useCallback((data) => {
+    console.log('Reaction update received:', data);
+    setMessages(prev => prev.map(message => 
+      message.id === data.messageId 
+        ? { ...message, reactions: data.reactions }
+        : message
+    ));
+  }, []);
+
   useEffect(() => {
     if (socket) {
       socket.on('new-message', handleNewMessage);
       socket.on('user-typing', handleUserTyping);
       socket.on('user-stopped-typing', handleUserStoppedTyping);
+      socket.on('reaction-updated', handleReactionUpdate);
 
       return () => {
         socket.off('new-message', handleNewMessage);
         socket.off('user-typing', handleUserTyping);
         socket.off('user-stopped-typing', handleUserStoppedTyping);
+        socket.off('reaction-updated', handleReactionUpdate);
       };
     }
-  }, [socket, handleUserTyping, handleUserStoppedTyping]);
+  }, [socket, handleUserTyping, handleUserStoppedTyping, handleReactionUpdate]);
 
   useEffect(() => {
     scrollToBottom();
@@ -438,14 +454,54 @@ const ChatWindow = ({ chat, onBack }) => {
     }
   };
 
-  // Swipe detection functions
+
+  const removeQuotedMessage = () => {
+    setQuotedMessage(null);
+  };
+
+  // Long press detection for reactions
+  const handleMouseDown = (e, message) => {
+    e.preventDefault();
+    const timer = setTimeout(() => {
+      setSelectedMessageForReaction(message);
+      setShowEmojiPicker(true);
+    }, 500); // 500ms long press
+    setLongPressTimer(timer);
+  };
+
+  const handleMouseUp = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+  };
+
+  // Touch events for mobile
   const handleTouchStart = (e, message) => {
     const touch = e.touches[0];
     setSwipeStartX(touch.clientX);
     setSwipeStartY(touch.clientY);
+    
+    const timer = setTimeout(() => {
+      setSelectedMessageForReaction(message);
+      setShowEmojiPicker(true);
+    }, 500); // 500ms long press
+    setLongPressTimer(timer);
   };
 
   const handleTouchEnd = (e, message) => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      setLongPressTimer(null);
+    }
+
     if (!swipeStartX || !swipeStartY) return;
 
     const touch = e.changedTouches[0];
@@ -453,7 +509,7 @@ const ChatWindow = ({ chat, onBack }) => {
     const deltaY = touch.clientY - swipeStartY;
     const minSwipeDistance = 50;
 
-    // Check if it's a horizontal swipe (left or right)
+    // Check if it's a horizontal swipe (left or right) for quoting
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
       // Quote the message
       setQuotedMessage(message);
@@ -463,8 +519,87 @@ const ChatWindow = ({ chat, onBack }) => {
     setSwipeStartY(null);
   };
 
-  const removeQuotedMessage = () => {
-    setQuotedMessage(null);
+  // Emoji picker functions
+  const handleEmojiSelect = (emoji) => {
+    if (selectedMessageForReaction) {
+      addReaction(selectedMessageForReaction.id, emoji);
+    }
+    setShowEmojiPicker(false);
+    setSelectedMessageForReaction(null);
+    setCustomEmoji('');
+  };
+
+  const handleCustomEmojiSubmit = () => {
+    if (customEmoji.trim() && selectedMessageForReaction) {
+      addReaction(selectedMessageForReaction.id, customEmoji.trim());
+      setShowEmojiPicker(false);
+      setSelectedMessageForReaction(null);
+      setCustomEmoji('');
+    }
+  };
+
+  const addReaction = async (messageId, emoji) => {
+    try {
+      console.log('Adding reaction:', { messageId, emoji });
+      const response = await fetch(getApiUrl(`/api/messages/${messageId}/reactions`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ emoji })
+      });
+
+      if (response.ok) {
+        console.log('Reaction added successfully');
+        // Also emit socket event for immediate update
+        if (socket) {
+          socket.emit('add-reaction', { messageId, emoji });
+        }
+      } else {
+        const error = await response.json();
+        console.error('Error adding reaction:', error);
+      }
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+    }
+  };
+
+  const removeReaction = async (messageId, emoji) => {
+    try {
+      console.log('Removing reaction:', { messageId, emoji });
+      const response = await fetch(getApiUrl(`/api/messages/${messageId}/reactions/${encodeURIComponent(emoji)}`), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+
+      if (response.ok) {
+        console.log('Reaction removed successfully');
+        // Also emit socket event for immediate update
+        if (socket) {
+          socket.emit('remove-reaction', { messageId, emoji });
+        }
+      } else {
+        const error = await response.json();
+        console.error('Error removing reaction:', error);
+      }
+    } catch (error) {
+      console.error('Error removing reaction:', error);
+    }
+  };
+
+  const toggleReaction = (messageId, emoji, currentReactions) => {
+    const hasReacted = currentReactions.some(reaction => 
+      reaction.users.some(u => u.user_id === user?.id)
+    );
+    
+    if (hasReacted) {
+      removeReaction(messageId, emoji);
+    } else {
+      addReaction(messageId, emoji);
+    }
   };
 
   const quillModules = {
@@ -561,6 +696,9 @@ const ChatWindow = ({ chat, onBack }) => {
               <div
                 key={message.id}
                 className={`message ${isOwnMessage ? 'sent' : 'received'}`}
+                onMouseDown={(e) => handleMouseDown(e, message)}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseLeave}
                 onTouchStart={(e) => handleTouchStart(e, message)}
                 onTouchEnd={(e) => handleTouchEnd(e, message)}
               >
@@ -608,6 +746,23 @@ const ChatWindow = ({ chat, onBack }) => {
                   <span className="message-time">
                     {formatTime(message.created_at)}
                   </span>
+                  {message.reactions && message.reactions.length > 0 && (
+                    <div className="message-reactions">
+                      {message.reactions.map((reaction, index) => (
+                        <button
+                          key={index}
+                          className={`reaction ${reaction.users.some(u => u.user_id === user?.id) ? 'reacted' : ''}`}
+                          onClick={() => toggleReaction(message.id, reaction.emoji, message.reactions)}
+                        >
+                          <span className="reaction-emoji">{reaction.emoji}</span>
+                          <span className="reaction-count">{reaction.count}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {message.reactions && message.reactions.length === 0 && (
+                    <div style={{fontSize: '10px', color: '#999'}}>No reactions</div>
+                  )}
                 </div>
               </div>
             );
@@ -680,6 +835,52 @@ const ChatWindow = ({ chat, onBack }) => {
 
       {/* Hidden canvas for image resizing */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
+
+      {/* Emoji Picker Modal */}
+      {showEmojiPicker && (
+        <div className="emoji-picker-overlay" onClick={() => setShowEmojiPicker(false)}>
+          <div className="emoji-picker" onClick={(e) => e.stopPropagation()}>
+            <div className="emoji-picker-header">
+              <h3>Add Reaction</h3>
+              <button 
+                className="close-emoji-picker"
+                onClick={() => setShowEmojiPicker(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="emoji-grid">
+              {['😀', '😂', '😍', '🥰', '😎', '🤔', '👍', '👎', '❤️', '🔥', '🎉', '👏', '😢', '😡', '🤯', '💯'].map(emoji => (
+                <button
+                  key={emoji}
+                  className="emoji-button"
+                  onClick={() => handleEmojiSelect(emoji)}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+            <div className="custom-emoji-section">
+              <div className="custom-emoji-input">
+                <input
+                  type="text"
+                  placeholder="Type any emoji..."
+                  value={customEmoji}
+                  onChange={(e) => setCustomEmoji(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleCustomEmojiSubmit()}
+                />
+                <button 
+                  className="add-custom-emoji"
+                  onClick={handleCustomEmojiSubmit}
+                  disabled={!customEmoji.trim()}
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
