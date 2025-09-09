@@ -201,9 +201,18 @@ export const SocketProvider = ({ children }) => {
     }
   }, [user, currentChatId, showBrowserNotification]);
 
-  const sendMessage = (chatId, content, messageType = 'text') => {
+  const sendMessage = (chatId, messageData, messageType = 'text') => {
     if (socket && connected) {
-      socket.emit('send-message', { chatId, content, messageType });
+      // Handle both old format (string content) and new format (object with content and quotedMessage)
+      const content = typeof messageData === 'string' ? messageData : messageData.content;
+      const quotedMessage = typeof messageData === 'object' ? messageData.quotedMessage : null;
+      
+      socket.emit('send-message', { 
+        chatId, 
+        content, 
+        messageType,
+        quotedMessage 
+      });
     }
   };
 

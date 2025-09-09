@@ -157,7 +157,7 @@ io.on('connection', (socket) => {
   // Handle new message
   socket.on('send-message', async (data) => {
     try {
-      const { chatId, content, messageType = 'text' } = data;
+      const { chatId, content, messageType = 'text', quotedMessage } = data;
       
       const { pool } = require('./database/connection');
       
@@ -172,12 +172,23 @@ io.on('connection', (socket) => {
         return;
       }
 
+      // Prepare quoted message data
+      let quotedMessageId = null;
+      let quotedContent = null;
+      let quotedSenderName = null;
+
+      if (quotedMessage) {
+        quotedMessageId = quotedMessage.id;
+        quotedContent = quotedMessage.content;
+        quotedSenderName = quotedMessage.sender_name || quotedMessage.username;
+      }
+
       // Create message
       const result = await pool.query(`
-        INSERT INTO messages (chat_id, sender_id, content, message_type)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, content, message_type, image_data, created_at, updated_at
-      `, [chatId, socket.userId, content, messageType]);
+        INSERT INTO messages (chat_id, sender_id, content, message_type, quoted_message_id, quoted_content, quoted_sender_name)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING id, content, message_type, image_data, quoted_message_id, quoted_content, quoted_sender_name, created_at, updated_at
+      `, [chatId, socket.userId, content, messageType, quotedMessageId, quotedContent, quotedSenderName]);
 
       const message = result.rows[0];
 
@@ -205,6 +216,16 @@ io.on('connection', (socket) => {
 
       const chatInfo = chatResult.rows[0];
 
+      // Prepare quoted message data for broadcasting
+      let quotedMessageData = null;
+      if (message.quoted_message_id) {
+        quotedMessageData = {
+          id: message.quoted_message_id,
+          content: message.quoted_content,
+          sender_name: message.quoted_sender_name
+        };
+      }
+
       // Broadcast to all participants in the chat
       io.to(`chat-${chatId}`).emit('new-message', {
         ...message,
@@ -213,7 +234,8 @@ io.on('connection', (socket) => {
         user_id: socket.userId,
         username: socket.user.username,
         sender_name: socket.user.display_name,
-        sender_avatar: null
+        sender_avatar: null,
+        quotedMessage: quotedMessageData
       });
     } catch (error) {
       console.error('Error sending message:', error);

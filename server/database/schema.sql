@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS messages (
     content TEXT NOT NULL,
     message_type VARCHAR(20) DEFAULT 'text' CHECK (message_type IN ('text', 'image', 'file')),
     image_data JSONB, -- Store image metadata and base64 data as JSON
+    quoted_message_id INTEGER REFERENCES messages(id) ON DELETE SET NULL, -- Reference to quoted message
+    quoted_content TEXT, -- Store quoted message content for display
+    quoted_sender_name VARCHAR(100), -- Store quoted sender name for display
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

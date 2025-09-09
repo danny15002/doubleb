@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, Send, MoreVertical, LogOut, Trash2, Image as ImageIcon } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, LogOut, Trash2, Image as ImageIcon, X } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { getApiUrl } from '../config/api';
@@ -14,6 +14,9 @@ const ChatWindow = ({ chat, onBack }) => {
   const [typingUsers, setTypingUsers] = useState([]);
   const [showMenu, setShowMenu] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [quotedMessage, setQuotedMessage] = useState(null);
+  const [swipeStartX, setSwipeStartX] = useState(null);
+  const [swipeStartY, setSwipeStartY] = useState(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const menuRef = useRef(null);
@@ -122,8 +125,13 @@ const ChatWindow = ({ chat, onBack }) => {
 
   const handleSendMessage = () => {
     if (newMessage.trim()) {
-      sendMessage(chat.id, newMessage, 'text');
+      const messageData = {
+        content: newMessage,
+        quotedMessage: quotedMessage
+      };
+      sendMessage(chat.id, messageData, 'text');
       setNewMessage('');
+      setQuotedMessage(null);
       stopTyping(chat.id);
     }
   };
@@ -430,6 +438,35 @@ const ChatWindow = ({ chat, onBack }) => {
     }
   };
 
+  // Swipe detection functions
+  const handleTouchStart = (e, message) => {
+    const touch = e.touches[0];
+    setSwipeStartX(touch.clientX);
+    setSwipeStartY(touch.clientY);
+  };
+
+  const handleTouchEnd = (e, message) => {
+    if (!swipeStartX || !swipeStartY) return;
+
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - swipeStartX;
+    const deltaY = touch.clientY - swipeStartY;
+    const minSwipeDistance = 50;
+
+    // Check if it's a horizontal swipe (left or right)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+      // Quote the message
+      setQuotedMessage(message);
+    }
+
+    setSwipeStartX(null);
+    setSwipeStartY(null);
+  };
+
+  const removeQuotedMessage = () => {
+    setQuotedMessage(null);
+  };
+
   const quillModules = {
     toolbar: [
       ['bold', 'italic', 'underline'],
@@ -524,11 +561,26 @@ const ChatWindow = ({ chat, onBack }) => {
               <div
                 key={message.id}
                 className={`message ${isOwnMessage ? 'sent' : 'received'}`}
+                onTouchStart={(e) => handleTouchStart(e, message)}
+                onTouchEnd={(e) => handleTouchEnd(e, message)}
               >
                 <div className="message-content">
                   {!isOwnMessage && (
                     <div className="message-sender">
                       {message.sender_name || message.username}
+                    </div>
+                  )}
+                  {message.quotedMessage && (
+                    <div className="quoted-message">
+                      <div className="quoted-message-content">
+                        <span className="quoted-sender">
+                          {message.quotedMessage.sender_name || message.quotedMessage.username}
+                        </span>
+                        <div 
+                          className="quoted-text"
+                          dangerouslySetInnerHTML={{ __html: message.quotedMessage.content }}
+                        />
+                      </div>
                     </div>
                   )}
                   {message.message_type === 'image' ? (
@@ -565,6 +617,26 @@ const ChatWindow = ({ chat, onBack }) => {
       </div>
 
       <div className="message-input-container">
+        {quotedMessage && (
+          <div className="quoted-message-preview">
+            <div className="quoted-message-preview-content">
+              <span className="quoted-sender">
+                {quotedMessage.sender_name || quotedMessage.username}
+              </span>
+              <div 
+                className="quoted-text"
+                dangerouslySetInnerHTML={{ __html: quotedMessage.content }}
+              />
+            </div>
+            <button 
+              className="remove-quote-button"
+              onClick={removeQuotedMessage}
+              title="Remove quote"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
         <div className="message-input-wrapper">
           <input
             type="file"

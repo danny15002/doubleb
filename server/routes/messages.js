@@ -47,6 +47,9 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
         m.content,
         m.message_type,
         m.image_data,
+        m.quoted_message_id,
+        m.quoted_content,
+        m.quoted_sender_name,
         m.created_at,
         m.updated_at,
         u.id as sender_id,
@@ -60,7 +63,7 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
       LIMIT $2 OFFSET $3
     `, [chatId, limit, offset]);
 
-    // Parse image_data for all messages
+    // Parse image_data and prepare quoted message data for all messages
     const messages = result.rows.map(row => {
       if (row.image_data && typeof row.image_data === 'string') {
         try {
@@ -69,6 +72,16 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
           console.error('Error parsing image_data:', error);
         }
       }
+      
+      // Prepare quoted message data
+      if (row.quoted_message_id) {
+        row.quotedMessage = {
+          id: row.quoted_message_id,
+          content: row.quoted_content,
+          sender_name: row.quoted_sender_name
+        };
+      }
+      
       return row;
     });
 
