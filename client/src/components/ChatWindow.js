@@ -24,6 +24,7 @@ const ChatWindow = ({ chat, onBack }) => {
   const [customEmoji, setCustomEmoji] = useState('');
   const [lastTapTime, setLastTapTime] = useState(0);
   const [lastTappedMessage, setLastTappedMessage] = useState(null);
+  const tapTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const menuRef = useRef(null);
@@ -175,8 +176,11 @@ const ChatWindow = ({ chat, onBack }) => {
 
   const handleSendMessage = () => {
     if (newMessage.trim()) {
+      // Format the message content with link detection
+      const formattedContent = formatMessageContent(newMessage);
+      
       const messageData = {
-        content: newMessage,
+        content: formattedContent,
         quotedMessage: quotedMessage
       };
       sendMessage(chat.id, messageData, 'text');
@@ -525,18 +529,32 @@ const ChatWindow = ({ chat, onBack }) => {
   };
 
   const handleDoubleTap = (message) => {
+    console.log('handleDoubleTap called for message:', message.id);
     const now = new Date().getTime();
     const DOUBLE_TAP_DELAY = 300; // 300ms between taps
 
+    // Clear any existing timeout
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+    }
+
     if (lastTappedMessage && lastTappedMessage.id === message.id && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
       // Double tap detected - copy message text
+      console.log('Double tap detected! Copying message...');
       copyMessageText(message);
       setLastTappedMessage(null);
       setLastTapTime(0);
     } else {
-      // First tap
+      // First tap - set up timeout to clear if no second tap
+      console.log('First tap detected, waiting for second tap...');
       setLastTappedMessage(message);
       setLastTapTime(now);
+      
+      tapTimeoutRef.current = setTimeout(() => {
+        console.log('Timeout reached, clearing tap state');
+        setLastTappedMessage(null);
+        setLastTapTime(0);
+      }, DOUBLE_TAP_DELAY);
     }
   };
 
@@ -556,6 +574,7 @@ const ChatWindow = ({ chat, onBack }) => {
         await navigator.clipboard.writeText(textToCopy.trim());
         // You could add a toast notification here if you have one
         console.log('Message copied to clipboard:', textToCopy.trim());
+        alert('Message copied to clipboard!'); // Temporary visual feedback
       }
     } catch (err) {
       console.error('Failed to copy text: ', err);
@@ -566,7 +585,36 @@ const ChatWindow = ({ chat, onBack }) => {
       textArea.select();
       document.execCommand('copy');
       document.body.removeChild(textArea);
+      alert('Message copied to clipboard!'); // Temporary visual feedback
     }
+  };
+
+  // Auto-detect and convert links to clickable elements
+  const detectAndConvertLinks = (text) => {
+    if (!text) return text;
+    
+    // URL regex pattern - matches http, https, www, and common domains
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,})/g;
+    
+    return text.replace(urlRegex, (url) => {
+      // Add protocol if missing
+      const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+      return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="message-link">${url}</a>`;
+    });
+  };
+
+  // Format message content with link detection
+  const formatMessageContent = (content) => {
+    if (!content) return '';
+    
+    // If content is already HTML (from previous messages), return as is
+    if (content.includes('<') && content.includes('>')) {
+      return content;
+    }
+    
+    // Convert newlines to <br> and detect links
+    return detectAndConvertLinks(content)
+      .replace(/\n/g, '<br>');
   };
 
   // Long press detection for reactions
@@ -579,10 +627,15 @@ const ChatWindow = ({ chat, onBack }) => {
     setLongPressTimer(timer);
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e, message) => {
     if (longPressTimer) {
       clearTimeout(longPressTimer);
       setLongPressTimer(null);
+    }
+    
+    // Handle double tap detection on mouse up (for desktop)
+    if (message) {
+      handleDoubleTap(message);
     }
   };
 
@@ -612,7 +665,11 @@ const ChatWindow = ({ chat, onBack }) => {
       setLongPressTimer(null);
     }
 
-    if (!swipeStartX || !swipeStartY) return;
+    if (!swipeStartX || !swipeStartY) {
+      // No swipe detected, check for double tap
+      handleDoubleTap(message);
+      return;
+    }
 
     const touch = e.changedTouches[0];
     const deltaX = touch.clientX - swipeStartX;
@@ -623,6 +680,9 @@ const ChatWindow = ({ chat, onBack }) => {
     if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
       // Quote the message
       setQuotedMessage(message);
+    } else {
+      // Small movement, treat as tap for double tap detection
+      handleDoubleTap(message);
     }
 
     setSwipeStartX(null);
@@ -817,9 +877,8 @@ const ChatWindow = ({ chat, onBack }) => {
               <div
                 key={message.id}
                 className={`message ${isOwnMessage ? 'sent' : 'received'}`}
-                onClick={() => handleDoubleTap(message)}
                 onMouseDown={(e) => handleMouseDown(e, message)}
-                onMouseUp={handleMouseUp}
+                onMouseUp={(e) => handleMouseUp(e, message)}
                 onMouseLeave={handleMouseLeave}
                 onTouchStart={(e) => handleTouchStart(e, message)}
                 onTouchEnd={(e) => handleTouchEnd(e, message)}
@@ -935,7 +994,7 @@ const ChatWindow = ({ chat, onBack }) => {
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             onFocus={handleTyping}
-            placeholder="Type a message..."
+            placeholder="Type a message... (links will be auto-detected)"
             className="message-input-textarea"
             style={{
               width: '100%',
