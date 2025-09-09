@@ -273,8 +273,29 @@ io.on('connection', (socket) => {
             messageId: message.id,
             status: 'delivered'
           });
+
+          // Mark message as read for all users currently in the chat (except sender)
+          const connectedUsers = await io.in(`chat-${chatId}`).fetchSockets();
+          const connectedUserIds = connectedUsers
+            .filter(s => s.userId !== socket.userId)
+            .map(s => s.userId);
+
+          if (connectedUserIds.length > 0) {
+            // Mark as read for connected users
+            await pool.query(`
+              UPDATE messages 
+              SET status = 'read', updated_at = CURRENT_TIMESTAMP
+              WHERE id = $1
+            `, [message.id]);
+
+            // Broadcast read status update
+            io.to(`chat-${chatId}`).emit('message-status-updated', {
+              messageId: message.id,
+              status: 'read'
+            });
+          }
         } catch (error) {
-          console.error('Error updating message to delivered:', error);
+          console.error('Error updating message status:', error);
         }
       }, 1000); // 1 second delay
     } catch (error) {
