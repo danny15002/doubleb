@@ -20,8 +20,10 @@ const ChatWindow = ({ chat, onBack }) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [selectedMessageForReaction, setSelectedMessageForReaction] = useState(null);
   const [longPressTimer, setLongPressTimer] = useState(null);
-  const LONG_PRESS_DELAY = 800; // Increased from 500ms to 800ms
+  const LONG_PRESS_DELAY = 1200; // Increased to 1.2 seconds
   const [customEmoji, setCustomEmoji] = useState('');
+  const [lastTapTime, setLastTapTime] = useState(0);
+  const [lastTappedMessage, setLastTappedMessage] = useState(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const menuRef = useRef(null);
@@ -522,6 +524,51 @@ const ChatWindow = ({ chat, onBack }) => {
     setQuotedMessage(null);
   };
 
+  const handleDoubleTap = (message) => {
+    const now = new Date().getTime();
+    const DOUBLE_TAP_DELAY = 300; // 300ms between taps
+
+    if (lastTappedMessage && lastTappedMessage.id === message.id && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
+      // Double tap detected - copy message text
+      copyMessageText(message);
+      setLastTappedMessage(null);
+      setLastTapTime(0);
+    } else {
+      // First tap
+      setLastTappedMessage(message);
+      setLastTapTime(now);
+    }
+  };
+
+  const copyMessageText = async (message) => {
+    try {
+      // Extract text content from the message
+      let textToCopy = '';
+      
+      if (message.content) {
+        // If it's HTML content, strip HTML tags
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = message.content;
+        textToCopy = tempDiv.textContent || tempDiv.innerText || '';
+      }
+      
+      if (textToCopy.trim()) {
+        await navigator.clipboard.writeText(textToCopy.trim());
+        // You could add a toast notification here if you have one
+        console.log('Message copied to clipboard:', textToCopy.trim());
+      }
+    } catch (err) {
+      console.error('Failed to copy text: ', err);
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = message.content ? message.content.replace(/<[^>]*>/g, '') : '';
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+    }
+  };
+
   // Long press detection for reactions
   const handleMouseDown = (e, message) => {
     e.preventDefault();
@@ -770,6 +817,7 @@ const ChatWindow = ({ chat, onBack }) => {
               <div
                 key={message.id}
                 className={`message ${isOwnMessage ? 'sent' : 'received'}`}
+                onClick={() => handleDoubleTap(message)}
                 onMouseDown={(e) => handleMouseDown(e, message)}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseLeave}

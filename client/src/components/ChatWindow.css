@@ -989,16 +989,18 @@
 
 /* Message swipe hint */
 .message {
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, background-color 0.2s ease;
   position: relative;
+  cursor: pointer;
 }
 
 .message:active {
   transform: scale(0.98);
+  background-color: rgba(0, 0, 0, 0.1);
 }
 
 .message:hover {
-  background: rgba(0, 0, 0, 0.02);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 /* Mobile responsive for modal */
