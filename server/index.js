@@ -148,6 +148,27 @@ io.on('connection', (socket) => {
       if (participantCheck.rows.length > 0) {
         socket.join(`chat-${chatId}`);
         console.log(`User ${socket.user.username} joined chat ${chatId}`);
+        
+        // Mark all messages in this chat as read for this user
+        await pool.query(`
+          UPDATE messages 
+          SET status = 'read', updated_at = CURRENT_TIMESTAMP
+          WHERE chat_id = $1 AND sender_id != $2 AND status != 'read'
+        `, [chatId, socket.userId]);
+
+        // Get all updated messages and broadcast status updates
+        const updatedMessages = await pool.query(`
+          SELECT id FROM messages 
+          WHERE chat_id = $1 AND sender_id != $2 AND status = 'read'
+        `, [chatId, socket.userId]);
+
+        // Broadcast status updates for all messages marked as read
+        updatedMessages.rows.forEach(msg => {
+          io.to(`chat-${chatId}`).emit('message-status-updated', {
+            messageId: msg.id,
+            status: 'read'
+          });
+        });
       }
     } catch (error) {
       console.error('Error joining chat:', error);
@@ -185,9 +206,9 @@ io.on('connection', (socket) => {
 
       // Create message
       const result = await pool.query(`
-        INSERT INTO messages (chat_id, sender_id, content, message_type, quoted_message_id, quoted_content, quoted_sender_name)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        RETURNING id, content, message_type, image_data, quoted_message_id, quoted_content, quoted_sender_name, created_at, updated_at
+        INSERT INTO messages (chat_id, sender_id, content, message_type, quoted_message_id, quoted_content, quoted_sender_name, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'sent')
+        RETURNING id, content, message_type, image_data, quoted_message_id, quoted_content, quoted_sender_name, status, created_at, updated_at
       `, [chatId, socket.userId, content, messageType, quotedMessageId, quotedContent, quotedSenderName]);
 
       const message = result.rows[0];
@@ -237,6 +258,25 @@ io.on('connection', (socket) => {
         sender_avatar: null,
         quotedMessage: quotedMessageData
       });
+
+      // Auto-update status to 'delivered' after a short delay
+      setTimeout(async () => {
+        try {
+          await pool.query(`
+            UPDATE messages 
+            SET status = 'delivered', updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+          `, [message.id]);
+
+          // Broadcast status update
+          io.to(`chat-${chatId}`).emit('message-status-updated', {
+            messageId: message.id,
+            status: 'delivered'
+          });
+        } catch (error) {
+          console.error('Error updating message to delivered:', error);
+        }
+      }, 1000); // 1 second delay
     } catch (error) {
       console.error('Error sending message:', error);
       socket.emit('error', { message: 'Failed to send message' });

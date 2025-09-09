@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, Send, MoreVertical, LogOut, Trash2, Image as ImageIcon, X } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, LogOut, Trash2, Image as ImageIcon, X, Check, CheckCheck } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { getApiUrl } from '../config/api';
@@ -100,21 +100,32 @@ const ChatWindow = ({ chat, onBack }) => {
     ));
   }, []);
 
+  const handleStatusUpdate = useCallback((data) => {
+    console.log('Status update received:', data);
+    setMessages(prev => prev.map(message => 
+      message.id === data.messageId 
+        ? { ...message, status: data.status }
+        : message
+    ));
+  }, []);
+
   useEffect(() => {
     if (socket) {
       socket.on('new-message', handleNewMessage);
       socket.on('user-typing', handleUserTyping);
       socket.on('user-stopped-typing', handleUserStoppedTyping);
       socket.on('reaction-updated', handleReactionUpdate);
+      socket.on('message-status-updated', handleStatusUpdate);
 
       return () => {
         socket.off('new-message', handleNewMessage);
         socket.off('user-typing', handleUserTyping);
         socket.off('user-stopped-typing', handleUserStoppedTyping);
         socket.off('reaction-updated', handleReactionUpdate);
+        socket.off('message-status-updated', handleStatusUpdate);
       };
     }
-  }, [socket, handleUserTyping, handleUserStoppedTyping, handleReactionUpdate]);
+  }, [socket, handleUserTyping, handleUserStoppedTyping, handleReactionUpdate, handleStatusUpdate]);
 
   useEffect(() => {
     scrollToBottom();
@@ -393,6 +404,37 @@ const ChatWindow = ({ chat, onBack }) => {
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const renderMessageStatus = (message) => {
+    const isOwnMessage = message.sender_id === user?.id;
+    if (!isOwnMessage) return null;
+    
+    const status = message.status || 'sent';
+    
+    switch (status) {
+      case 'sent':
+        return (
+          <div className="message-status">
+            <Check size={12} className="status-icon sent" />
+          </div>
+        );
+      case 'delivered':
+        return (
+          <div className="message-status">
+            <Check size={12} className="status-icon delivered" />
+            <Check size={12} className="status-icon delivered" />
+          </div>
+        );
+      case 'read':
+        return (
+          <div className="message-status">
+            <CheckCheck size={12} className="status-icon read" />
+          </div>
+        );
+      default:
+        return null;
+    }
   };
 
   const leaveChat = async () => {
@@ -743,9 +785,12 @@ const ChatWindow = ({ chat, onBack }) => {
                       dangerouslySetInnerHTML={{ __html: message.content }}
                     />
                   )}
-                  <span className="message-time">
-                    {formatTime(message.created_at)}
-                  </span>
+                  <div className="message-time-status">
+                    <span className="message-time">
+                      {formatTime(message.created_at)}
+                    </span>
+                    {renderMessageStatus(message)}
+                  </div>
                   {message.reactions && message.reactions.length > 0 && (
                     <div className="message-reactions">
                       {message.reactions.map((reaction, index) => (
@@ -759,9 +804,6 @@ const ChatWindow = ({ chat, onBack }) => {
                         </button>
                       ))}
                     </div>
-                  )}
-                  {message.reactions && message.reactions.length === 0 && (
-                    <div style={{fontSize: '10px', color: '#999'}}>No reactions</div>
                   )}
                 </div>
               </div>

@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS messages (
     quoted_message_id INTEGER REFERENCES messages(id) ON DELETE SET NULL, -- Reference to quoted message
     quoted_content TEXT, -- Store quoted message content for display
     quoted_sender_name VARCHAR(100), -- Store quoted sender name for display
+    status VARCHAR(20) DEFAULT 'sent' CHECK (status IN ('sent', 'delivered', 'read')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

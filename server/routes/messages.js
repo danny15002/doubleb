@@ -50,6 +50,7 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
         m.quoted_message_id,
         m.quoted_content,
         m.quoted_sender_name,
+        m.status,
         m.created_at,
         m.updated_at,
         u.id as sender_id,
@@ -448,6 +449,50 @@ router.get('/:messageId/reactions', authenticateToken, async (req, res) => {
     res.json({ reactions: result.rows });
   } catch (error) {
     console.error('Get reactions error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update message status
+router.patch('/:messageId/status', authenticateToken, [
+  body('status').isIn(['sent', 'delivered', 'read'])
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { messageId } = req.params;
+    const { status } = req.body;
+
+    // Check if message exists and user has access
+    const messageCheck = await pool.query(`
+      SELECT m.id, m.chat_id, m.sender_id
+      FROM messages m
+      JOIN chat_participants cp ON m.chat_id = cp.chat_id
+      WHERE m.id = $1 AND cp.user_id = $2
+    `, [messageId, req.user.id]);
+
+    if (messageCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found or access denied' });
+    }
+
+    const message = messageCheck.rows[0];
+
+    // Update message status
+    await pool.query(`
+      UPDATE messages 
+      SET status = $1, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+    `, [status, messageId]);
+
+    res.json({ 
+      message: 'Message status updated successfully',
+      status: status
+    });
+  } catch (error) {
+    console.error('Update message status error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
