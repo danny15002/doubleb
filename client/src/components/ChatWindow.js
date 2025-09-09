@@ -14,15 +14,6 @@ const ChatWindow = ({ chat, onBack }) => {
   const [typingUsers, setTypingUsers] = useState([]);
   const [showMenu, setShowMenu] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [showImageResizeModal, setShowImageResizeModal] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [originalImageSize, setOriginalImageSize] = useState({ width: 0, height: 0 });
-  const [estimatedNewSize, setEstimatedNewSize] = useState(0);
-  const [imageResizeOptions, setImageResizeOptions] = useState({
-    maxWidth: 800,
-    maxHeight: 600,
-    quality: 0.8
-  });
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const menuRef = useRef(null);
@@ -110,12 +101,6 @@ const ChatWindow = ({ chat, onBack }) => {
     scrollToBottom();
   }, [messages]);
 
-  // Calculate estimated size when resize options change
-  useEffect(() => {
-    if (showImageResizeModal && originalImageSize.width > 0) {
-      calculateEstimatedSize();
-    }
-  }, [imageResizeOptions, originalImageSize, showImageResizeModal]);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -197,6 +182,89 @@ const ChatWindow = ({ chat, onBack }) => {
     });
   };
 
+  const resizeImageToTargetSize = (file, targetSizeBytes) => {
+    return new Promise((resolve, reject) => {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        try {
+          let { width, height } = img;
+          const aspectRatio = width / height;
+          
+          // Start with a quality of 0.9 and adjust if needed
+          let quality = 0.9;
+          let resizedBlob = null;
+          
+          // Binary search to find the optimal quality that gets us close to target size
+          const findOptimalQuality = (minQuality, maxQuality, iterations = 0) => {
+            if (iterations > 10) {
+              // Fallback to the best result we found
+              resolve(resizedBlob || file);
+              return;
+            }
+            
+            const testQuality = (minQuality + maxQuality) / 2;
+            
+            // Calculate dimensions based on current quality
+            // We'll use a simple heuristic: reduce dimensions by sqrt(quality) to roughly maintain file size
+            const scale = Math.sqrt(testQuality);
+            const newWidth = Math.round(width * scale);
+            const newHeight = Math.round(height * scale);
+            
+            // Set canvas dimensions
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            
+            // Clear canvas and set image smoothing
+            ctx.clearRect(0, 0, newWidth, newHeight);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+            
+            // Draw and resize image
+            ctx.drawImage(img, 0, 0, newWidth, newHeight);
+            
+            // Convert to blob
+            canvas.toBlob((blob) => {
+              if (!blob) {
+                reject(new Error('Failed to create resized image'));
+                return;
+              }
+              
+              const currentSize = blob.size;
+              const sizeRatio = currentSize / targetSizeBytes;
+              
+              if (Math.abs(sizeRatio - 1) < 0.1) {
+                // Close enough to target size
+                resolve(blob);
+              } else if (currentSize > targetSizeBytes) {
+                // Too big, reduce quality
+                findOptimalQuality(minQuality, testQuality, iterations + 1);
+              } else {
+                // Too small, increase quality (but save this as our best result so far)
+                resizedBlob = blob;
+                findOptimalQuality(testQuality, maxQuality, iterations + 1);
+              }
+            }, file.type, testQuality);
+          };
+          
+          // Start the binary search
+          findOptimalQuality(0.1, 0.95);
+          
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      img.onerror = () => {
+        reject(new Error('Failed to load image'));
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const handleImageUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -208,22 +276,30 @@ const ChatWindow = ({ chat, onBack }) => {
     }
 
     // If image is small enough, upload directly
-    if (file.size <= 2 * 1024 * 1024) {
+    if (file.size <= 3 * 1024 * 1024) {
       await uploadImage(file);
       return;
     }
 
-    // For larger images, show resize modal
-    setSelectedImage(file);
-    
-    // Get original image dimensions for preview
-    const img = new Image();
-    img.onload = () => {
-      setOriginalImageSize({ width: img.width, height: img.height });
-    };
-    img.src = URL.createObjectURL(file);
-    
-    setShowImageResizeModal(true);
+    // For larger images, automatically resize to fit within 3MB
+    try {
+      setUploadingImage(true);
+      
+      // Calculate optimal dimensions to get close to 3MB
+      const targetSizeBytes = 3 * 1024 * 1024;
+      const resizedFile = await resizeImageToTargetSize(file, targetSizeBytes);
+      
+      await uploadImage(resizedFile);
+    } catch (error) {
+      console.error('Error resizing image:', error);
+      alert('Failed to resize image');
+    } finally {
+      setUploadingImage(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const uploadImage = async (file) => {
@@ -266,68 +342,6 @@ const ChatWindow = ({ chat, onBack }) => {
     }
   };
 
-  const handleResizeAndUpload = async () => {
-    if (!selectedImage) return;
-
-    try {
-      setUploadingImage(true);
-      setShowImageResizeModal(false);
-
-      const resizedFile = await resizeImage(
-        selectedImage,
-        imageResizeOptions.maxWidth,
-        imageResizeOptions.maxHeight,
-        imageResizeOptions.quality
-      );
-
-      await uploadImage(resizedFile);
-    } catch (error) {
-      console.error('Error resizing image:', error);
-      alert('Failed to resize image');
-    } finally {
-      setUploadingImage(false);
-      setSelectedImage(null);
-    }
-  };
-
-  const calculateEstimatedSize = () => {
-    if (!originalImageSize.width || !selectedImage) return;
-    
-    const { width: origWidth, height: origHeight } = originalImageSize;
-    const { maxWidth, maxHeight, quality } = imageResizeOptions;
-    
-    // Calculate scaling factors
-    const widthScale = maxWidth / origWidth;
-    const heightScale = maxHeight / origHeight;
-    const scale = Math.min(widthScale, heightScale, 1);
-    
-    // Calculate new dimensions
-    const newWidth = Math.round(origWidth * scale);
-    const newHeight = Math.round(origHeight * scale);
-    
-    // Estimate file size reduction based on area and quality
-    const areaReduction = (newWidth * newHeight) / (origWidth * origHeight);
-    const estimatedSize = selectedImage.size * areaReduction * quality;
-    
-    setEstimatedNewSize(estimatedSize);
-    
-    // Store new dimensions for display
-    setImageResizeOptions(prev => ({
-      ...prev,
-      newWidth,
-      newHeight
-    }));
-  };
-
-  const handleCancelResize = () => {
-    setShowImageResizeModal(false);
-    setSelectedImage(null);
-    setOriginalImageSize({ width: 0, height: 0 });
-    setEstimatedNewSize(0);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
 
   const triggerImageUpload = () => {
     fileInputRef.current?.click();
@@ -595,120 +609,6 @@ const ChatWindow = ({ chat, onBack }) => {
       {/* Hidden canvas for image resizing */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-      {/* Image Resize Modal */}
-      {showImageResizeModal && selectedImage && (
-        <div className="image-resize-modal-overlay">
-          <div className="image-resize-modal">
-            <h3>Resize Image</h3>
-            <p>Your image is larger than 2MB. Please choose resize options:</p>
-            {originalImageSize.width > 0 && (
-              <div className="original-size-info">
-                <p><strong>Original size:</strong> {originalImageSize.width} × {originalImageSize.height} pixels</p>
-                <p><strong>File size:</strong> {(selectedImage.size / (1024 * 1024)).toFixed(1)} MB</p>
-                {estimatedNewSize > 0 && (
-                  <>
-                    <p><strong>New dimensions:</strong> {imageResizeOptions.newWidth || 0} × {imageResizeOptions.newHeight || 0} pixels</p>
-                    <p><strong>Estimated new size:</strong> {(estimatedNewSize / (1024 * 1024)).toFixed(1)} MB</p>
-                  </>
-                )}
-              </div>
-            )}
-            
-            <div className="resize-options">
-              <div className="preset-sizes">
-                <label>Quick presets:</label>
-                <div className="preset-buttons">
-                  <button 
-                    type="button"
-                    className="preset-btn"
-                    onClick={() => setImageResizeOptions(prev => ({ ...prev, maxWidth: 400, maxHeight: 300 }))}
-                  >
-                    Small (400×300)
-                  </button>
-                  <button 
-                    type="button"
-                    className="preset-btn"
-                    onClick={() => setImageResizeOptions(prev => ({ ...prev, maxWidth: 800, maxHeight: 600 }))}
-                  >
-                    Medium (800×600)
-                  </button>
-                  <button 
-                    type="button"
-                    className="preset-btn"
-                    onClick={() => setImageResizeOptions(prev => ({ ...prev, maxWidth: 1200, maxHeight: 900 }))}
-                  >
-                    Large (1200×900)
-                  </button>
-                </div>
-              </div>
-              
-              <div className="option-group">
-                <label htmlFor="maxWidth">Max Width (px):</label>
-                <input
-                  id="maxWidth"
-                  type="number"
-                  value={imageResizeOptions.maxWidth}
-                  onChange={(e) => setImageResizeOptions(prev => ({
-                    ...prev,
-                    maxWidth: parseInt(e.target.value) || 800
-                  }))}
-                  min="100"
-                  max="2000"
-                />
-              </div>
-              
-              <div className="option-group">
-                <label htmlFor="maxHeight">Max Height (px):</label>
-                <input
-                  id="maxHeight"
-                  type="number"
-                  value={imageResizeOptions.maxHeight}
-                  onChange={(e) => setImageResizeOptions(prev => ({
-                    ...prev,
-                    maxHeight: parseInt(e.target.value) || 600
-                  }))}
-                  min="100"
-                  max="2000"
-                />
-              </div>
-              
-              <div className="option-group">
-                <label htmlFor="quality">Quality:</label>
-                <input
-                  id="quality"
-                  type="range"
-                  min="0.1"
-                  max="1"
-                  step="0.1"
-                  value={imageResizeOptions.quality}
-                  onChange={(e) => setImageResizeOptions(prev => ({
-                    ...prev,
-                    quality: parseFloat(e.target.value)
-                  }))}
-                />
-                <span>{Math.round(imageResizeOptions.quality * 100)}%</span>
-              </div>
-            </div>
-
-            <div className="modal-buttons">
-              <button 
-                className="cancel-button"
-                onClick={handleCancelResize}
-                disabled={uploadingImage}
-              >
-                Cancel
-              </button>
-              <button 
-                className="resize-button"
-                onClick={handleResizeAndUpload}
-                disabled={uploadingImage}
-              >
-                {uploadingImage ? 'Processing...' : 'Resize & Upload'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -1,16 +1,49 @@
 {
   "name": "BB Chat - Beep Boop Chat",
   "short_name": "BB Chat",
-  "description": "A WhatsApp clone web app",
+  "description": "A WhatsApp clone web app for real-time messaging",
   "start_url": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#ffffff",
   "theme_color": "#667eea",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["social", "communication", "productivity"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTI4MCIgaGVpZ2h0PSI3MjAiIHZpZXdCb3g9IjAgMCAxMjgwIDcyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjEyODAiIGhlaWdodD0iNzIwIiBmaWxsPSIjZjhmOWZhIi8+CjxyZWN0IHg9IjQwIiB5PSI0MCIgd2lkdGg9IjEyMDAiIGhlaWdodD0iNjQwIiByeD0iMTIiIGZpbGw9IndoaXRlIi8+Cjx0ZXh0IHg9IjY0MCIgeT0iMzgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iNDgiIGZpbGw9IiM2NjdlZWEiPkJCIENoYXQ8L3RleHQ+Cjwvc3ZnPg==",
+      "sizes": "1280x720",
+      "type": "image/svg+xml",
+      "form_factor": "wide"
+    }
+  ],
   "icons": [
     {
       "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxOTIiIGhlaWdodD0iMTkyIiByeD0iMjQiIGZpbGw9InVybCgjZ3JhZGllbnQwX2xpbmVhcl8xXzEpIi8+CjxwYXRoIGQ9Ik05NiA0OEM3MS4yIDQ4IDUyIDY3LjIgNTIgOTJWNzJDNTEgNTUuNCA2My40IDQzIDgwIDQzSDk2WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTE0MCA5MkMxNDAgNjcuMiAxMjAuOCA0OCA5NiA0OFY2OEgxMTJDMTA0LjYgNjggOTggNzQuNiA5OCA4MlY5MkgxNDBaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMTQwIDE0MEMxNDAgMTY0LjggMTIwLjggMTg0IDk2IDE4NFYxNjRIMTEyQzEwNC42IDE2NCA5OCAxNTcuNCA5OCAxNTBWMTQwSDE0MFoiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik05NiAxNDRDNzEuMiAxNDQgNTIgMTY0LjggNTIgMTkwVjE3MEM1MSAxNTMuNCA2My40IDE0MSA4MCAxNDFIOTZaIiBmaWxsPSJ3aGl0ZSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudDBfbGluZWFyXzFfMSIgeDE9IjAiIHkxPSIwIiB4Mj0iMTkyIiB5Mj0iMTkyIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CjxzdG9wIHN0b3AtY29sb3I9IiM2NjdlZWEiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNzY0YmEyIi8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPC9zdmc+",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MTIiIGhlaWdodD0iNTEyIiByeD0iNjQiIGZpbGw9InVybCgjZ3JhZGllbnQwX2xpbmVhcl8xXzEpIi8+CjxwYXRoIGQ9Ik0yNTYgMTI4QzE4OS4zIDEyOCAxMzYgMTgxLjMgMTM2IDI0OFYxOTJDMTM2IDE0Ny43IDE2OS4xIDExNC42IDIxMy4zIDExNC42SDI1NloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0zNzYgMjQ4QzM3NiAxODEuMyAzMjIuNyAxMjggMjU2IDEyOFYxODRIMzIwQzMyNy40IDE4NCAzMzQgMTkwLjYgMzM0IDE5OFYyNDhIMzc2WiIgZmlsbD0id2hpdGUiLz4KPHBhdGggZD0iTTM3NiAzNzZDMzc2IDQ0Mi43IDMyMi43IDQ5NiAyNTYgNDk2VjQ0MEgzMjBDMzI3LjQgNDQwIDMzNCA0MzMuNCAzMzQgNDI2VjM3NkgzNzZaIiBmaWxsPSJ3aGl0ZSIvPgo8cGF0aCBkPSJNMjU2IDM4NEMxODkuMyAzODQgMTM2IDQzNy4zIDEzNiA1MDRWNTAwQzEzNiA0MDkuMSAxNjkuMSAzNzYuNiAyMTMuMyAzNzYuNkgyNTZaIiBmaWxsPSJ3aGl0ZSIvPgo8ZGVmcz4KPGxpbmVhckdyYWRpZW50IGlkPSJncmFkaWVudDBfbGluZWFyXzFfMSIgeDE9IjAiIHkxPSIwIiB4Mj0iNTEyIiB5Mj0iNTEyIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CjxzdG9wIHN0b3AtY29sb3I9IiM2NjdlZWEiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNzY0YmEyIi8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPC9zdmc+",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Chat",
+      "short_name": "New Chat",
+      "description": "Start a new conversation",
+      "url": "/?action=new-chat",
+      "icons": [
+        {
+          "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIHZpZXdCb3g9IjAgMCA5NiA5NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9Ijk2IiBoZWlnaHQ9Ijk2IiByeD0iMTIiIGZpbGw9IiM2NjdlZWEiLz4KPHBhdGggZD0iTTQ4IDI0QzM1LjYgMjQgMjQgMzUuNiAyNCA0OFY0OEMyNCA2MC40IDM1LjYgNzIgNDggNzJINjRDNjcuNCA3MiA3MiA2Ny40IDcyIDY0VjQ4QzcyIDM1LjYgNjAuNCAyNCA0OCAyNFoiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPg==",
+          "sizes": "96x96"
+        }
+      ]
     }
   ]
 }

@@ -7,15 +7,28 @@ import Login from './components/Login';
 import Register from './components/Register';
 import ChatList from './components/ChatList';
 import ChatWindow from './components/ChatWindow';
+import NotificationPermission from './components/NotificationPermission';
+import notificationManager from './utils/notifications';
 import './App.css';
 
 function ChatApp() {
   const { setCurrentChat: setSocketCurrentChat, socket } = useSocket();
   const [currentChat, setCurrentChat] = useState(null);
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
 
   const handleChatSelect = (chat) => {
     setCurrentChat(chat);
     setSocketCurrentChat(chat?.id || null);
+  };
+
+  // Handle notification permission
+  const handleNotificationPermission = (granted) => {
+    setShowNotificationPrompt(false);
+    if (granted) {
+      console.log('Notification permission granted');
+    } else {
+      console.log('Notification permission denied');
+    }
   };
 
   // Handle chat deletion events
@@ -36,6 +49,45 @@ function ChatApp() {
       };
     }
   }, [socket, currentChat, setSocketCurrentChat]);
+
+  // Handle new message notifications
+  useEffect(() => {
+    if (socket) {
+      const handleNewMessage = (message) => {
+        // Only show notification if user is not in the current chat
+        if (currentChat && message.chatId !== currentChat.id) {
+          // Find the chat name (you might need to get this from your chat list)
+          const chatName = `Chat ${message.chatId}`;
+          
+          notificationManager.showLocalNotification(
+            `New message in ${chatName}`,
+            {
+              body: message.content || 'You have a new message',
+              tag: `message-${message.chatId}`,
+              data: { chatId: message.chatId }
+            }
+          );
+        }
+      };
+
+      socket.on('new-message', handleNewMessage);
+
+      return () => {
+        socket.off('new-message', handleNewMessage);
+      };
+    }
+  }, [socket, currentChat]);
+
+  // Show notification prompt after a delay
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (notificationManager.isSupported && notificationManager.permission === 'default') {
+        setShowNotificationPrompt(true);
+      }
+    }, 3000); // Show after 3 seconds
+
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="app">
@@ -62,6 +114,11 @@ function ChatApp() {
           )}
         </div>
       </div>
+      
+      {/* Notification Permission Prompt */}
+      {showNotificationPrompt && (
+        <NotificationPermission onPermissionGranted={handleNotificationPermission} />
+      )}
     </div>
   );
 }
