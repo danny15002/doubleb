@@ -970,15 +970,19 @@
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid #e0e0e0;
+  width: 100%;
 }
 
 .custom-emoji-input {
   display: flex;
   gap: 8px;
   align-items: center;
+  width: 100%;
 }
 
 .custom-emoji-input input {
+  flex: 1;
+  width: calc(50% - 4px);
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
@@ -992,6 +996,8 @@
 }
 
 .add-custom-emoji {
+  flex: 1;
+  width: calc(50% - 4px);
   background: #667eea;
   color: white;
   border: none;
