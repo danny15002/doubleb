@@ -38,6 +38,7 @@ const ChatWindow = ({ chat, onBack }) => {
   const fileInputRef = useRef(null);
   const quillRef = useRef(null);
   const canvasRef = useRef(null);
+  const textareaRef = useRef(null);
   const { socket, sendMessage, startTyping, stopTyping, editMessage } = useSocket();
   const { user } = useAuth();
 
@@ -117,15 +118,31 @@ const ChatWindow = ({ chat, onBack }) => {
       }, 300);
     };
     
+    // Handle mobile keyboard visibility changes
+    const handleResize = () => {
+      // On mobile, when keyboard appears/disappears, the viewport height changes
+      // This can help detect when keyboard is shown/hidden
+      if (isTouchDevice && textareaRef.current && document.activeElement === textareaRef.current) {
+        // Ensure textarea stays focused when keyboard is visible
+        setTimeout(() => {
+          if (textareaRef.current && !textareaRef.current.value) {
+            maintainTextareaFocus();
+          }
+        }, 100);
+      }
+    };
+    
     checkTouchDevice();
     window.addEventListener('resize', checkTouchDevice);
+    window.addEventListener('resize', handleResize);
     document.addEventListener('touchstart', handleGlobalTouchStart, { passive: true });
     
     return () => {
       window.removeEventListener('resize', checkTouchDevice);
+      window.removeEventListener('resize', handleResize);
       document.removeEventListener('touchstart', handleGlobalTouchStart);
     };
-  }, []);
+  }, [isTouchDevice]);
 
   const handleReactionUpdate = useCallback((data) => {
     console.log('Reaction update received:', data);
@@ -216,6 +233,15 @@ const ChatWindow = ({ chat, onBack }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Maintain focus on textarea to prevent keyboard retraction on mobile
+  const maintainTextareaFocus = () => {
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+      }
+    }, 0);
+  };
+
   const handleSendMessage = () => {
     if (newMessage.trim()) {
       // Format the message content with link detection
@@ -229,6 +255,9 @@ const ChatWindow = ({ chat, onBack }) => {
       setNewMessage('');
       setQuotedMessage(null);
       stopTyping(chat.id);
+      
+      // Maintain focus on the textarea after sending to prevent keyboard retraction on mobile
+      maintainTextareaFocus();
     }
   };
 
@@ -426,6 +455,9 @@ const ChatWindow = ({ chat, onBack }) => {
         const data = await response.json();
         // Don't add the message locally - it will be received via Socket.IO
         setNewMessage(''); // Clear the input
+        
+        // Maintain focus on the textarea after sending to prevent keyboard retraction on mobile
+        maintainTextareaFocus();
       } else if (response.status === 404 || response.status === 403) {
         // Chat not found or access denied - redirect back to chat list
         console.log('Chat not found or access denied during image upload, redirecting...');
@@ -1202,6 +1234,7 @@ const ChatWindow = ({ chat, onBack }) => {
             <ImageIcon size={20} />
           </button>
           <textarea
+            ref={textareaRef}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}

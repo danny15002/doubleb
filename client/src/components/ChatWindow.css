@@ -1104,6 +1104,31 @@
     touch-action: manipulation;
   }
   
+  /* Improve mobile keyboard behavior */
+  .message-input-textarea {
+    /* Prevent iOS from zooming when focusing */
+    font-size: 16px !important;
+    /* Ensure proper touch handling */
+    touch-action: manipulation;
+    /* Prevent text selection issues on mobile */
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    /* Improve focus behavior */
+    -webkit-tap-highlight-color: transparent;
+    /* Ensure proper keyboard appearance */
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  
+  /* Ensure input container stays visible when keyboard is open */
+  .message-input-container {
+    /* Prevent the container from being pushed off screen */
+    position: relative;
+    z-index: 10;
+  }
+  
   /* Prevent zoom on custom emoji input */
   .custom-emoji-input input {
     font-size: 16px !important;
