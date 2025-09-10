@@ -746,6 +746,33 @@
   font-weight: 400;
 }
 
+/* Quoted message styles for sender messages */
+.message.sent .quoted-message {
+  background: rgba(255, 255, 255, 0.15);
+  border-left: 3px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.message.sent .quoted-sender {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 2px;
+}
+
+.message.sent .quoted-text {
+  font-size: 13px;
+  color: #ffffff;
+  line-height: 1.4;
+  max-height: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  font-weight: 400;
+}
+
 .quoted-message-preview {
   background: #f8f9ff;
   border: 1px solid #667eea;
