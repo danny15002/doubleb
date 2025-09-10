@@ -29,6 +29,7 @@ const ChatWindow = ({ chat, onBack }) => {
   const [editingMessage, setEditingMessage] = useState(null);
   const [editContent, setEditContent] = useState('');
   const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
   const touchEventOccurred = useRef(false);
   const lastEventTime = useRef(0);
   const tapTimeoutRef = useRef(null);
@@ -555,6 +556,14 @@ const ChatWindow = ({ chat, onBack }) => {
 
   const triggerImageUpload = useCallback(() => {
     fileInputRef.current?.click();
+  }, []);
+
+  const handleImageClick = useCallback((imageData) => {
+    setSelectedImage(imageData);
+  }, []);
+
+  const closeImageModal = useCallback(() => {
+    setSelectedImage(null);
   }, []);
 
   const handleKeyPress = useCallback((e) => {
@@ -1223,6 +1232,8 @@ const ChatWindow = ({ chat, onBack }) => {
                           src={`data:${message.image_data.mimetype};base64,${message.image_data.data}`}
                           alt={message.image_data.filename}
                           style={imageStyle}
+                          onClick={() => handleImageClick(message.image_data)}
+                          className="clickable-image"
                         />
                       )}
                       {message.content && (
@@ -1417,6 +1428,28 @@ const ChatWindow = ({ chat, onBack }) => {
                 >
                   Add
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Modal */}
+      {selectedImage && (
+        <div className="image-modal-overlay" onClick={closeImageModal}>
+          <div className="image-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="close-image-modal" onClick={closeImageModal}>
+              <X size={24} />
+            </button>
+            <div className="image-modal-content">
+              <img 
+                src={`data:${selectedImage.mimetype};base64,${selectedImage.data}`}
+                alt={selectedImage.filename}
+                className="modal-image"
+              />
+              <div className="image-modal-info">
+                <p className="image-filename">{selectedImage.filename}</p>
+                <p className="image-size">{selectedImage.size ? `${Math.round(selectedImage.size / 1024)} KB` : ''}</p>
               </div>
             </div>
           </div>
