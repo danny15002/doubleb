@@ -234,6 +234,33 @@ const ChatWindow = ({ chat, onBack }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  // Auto-detect and convert links to clickable elements
+  const detectAndConvertLinks = (text) => {
+    if (!text) return text;
+    
+    // URL regex pattern - matches http, https, www, and common domains
+    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,})/g;
+    
+    return text.replace(urlRegex, (url) => {
+      // Add protocol if missing
+      const fullUrl = url.startsWith('http') ? url : `https://${url}`;
+      return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="message-link">${url}</a>`;
+    });
+  };
+
+  // Format message content with link detection
+  const formatMessageContent = (content) => {
+    if (!content) return '';
+    
+    // If content is already HTML (from previous messages), return as is
+    if (content.includes('<') && content.includes('>')) {
+      return content;
+    }
+    
+    // Convert newlines to <br> and detect links
+    return detectAndConvertLinks(content)
+      .replace(/\n/g, '<br>');
+  };
 
   const handleSendMessage = useCallback((e) => {
     if (e) {
@@ -776,34 +803,6 @@ const ChatWindow = ({ chat, onBack }) => {
         notification.remove();
       }, 2000);
     }
-  };
-
-  // Auto-detect and convert links to clickable elements
-  const detectAndConvertLinks = (text) => {
-    if (!text) return text;
-    
-    // URL regex pattern - matches http, https, www, and common domains
-    const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,})/g;
-    
-    return text.replace(urlRegex, (url) => {
-      // Add protocol if missing
-      const fullUrl = url.startsWith('http') ? url : `https://${url}`;
-      return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="message-link">${url}</a>`;
-    });
-  };
-
-  // Format message content with link detection
-  const formatMessageContent = (content) => {
-    if (!content) return '';
-    
-    // If content is already HTML (from previous messages), return as is
-    if (content.includes('<') && content.includes('>')) {
-      return content;
-    }
-    
-    // Convert newlines to <br> and detect links
-    return detectAndConvertLinks(content)
-      .replace(/\n/g, '<br>');
   };
 
   // Long press detection for reactions
