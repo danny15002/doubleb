@@ -14,15 +14,25 @@ export default defineConfig({
     exclude: [],
   },
   optimizeDeps: {
+    // Force re-bundling on every start
+    force: true,
     esbuildOptions: {
       loader: {
         '.js': 'jsx',
       },
     },
   },
+  // Disable caching completely
+  cacheDir: false,
   server: {
     host: '0.0.0.0', // Allow access from any IP address
     port: 3000,
+    // Disable caching for development
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    },
     proxy: {
       '/api': {
         // target: 'http://192.168.1.136:3001', // TEMPORARY: Use local IP
@@ -61,4 +71,7 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(version),
     __BUILD_TIMESTAMP__: JSON.stringify(buildTimestamp),
   },
+  // Additional development settings to prevent caching
+  clearScreen: false,
+  logLevel: 'info',
 })
