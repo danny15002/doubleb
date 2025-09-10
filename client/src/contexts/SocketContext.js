@@ -19,6 +19,7 @@ export const SocketProvider = ({ children }) => {
   const [connected, setConnected] = useState(false);
   const [currentChatId, setCurrentChatId] = useState(null);
   const [notificationPermission, setNotificationPermission] = useState('default');
+  const [isPageVisible, setIsPageVisible] = useState(!document.hidden);
   const { user } = useAuth();
 
   // Request notification permission
@@ -34,6 +35,19 @@ export const SocketProvider = ({ children }) => {
       }
     }
   }, [user]);
+
+  // Track page visibility to determine when to show notifications
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsPageVisible(!document.hidden);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   const requestNotificationPermission = useCallback(async () => {
     if ('Notification' in window) {
@@ -103,13 +117,15 @@ export const SocketProvider = ({ children }) => {
 
         console.log('isOwnMessage', isOwnMessage);
         console.log('isCurrentChat', isCurrentChat);
+        console.log('isPageVisible', isPageVisible);
         console.log('message', message);
         
-        // Only show notification if the message is not from the current user
-        // and not from the currently viewed chat
-        // Use strict equality and ensure both values are properly compared
+        // Show notification if:
+        // 1. Message is not from current user
+        // 2. Either it's not the current chat OR the page is not visible (user switched apps)
+        const shouldShowNotification = !isOwnMessage && (!isCurrentChat || !isPageVisible);
         
-        if (!isOwnMessage && !isCurrentChat) {
+        if (shouldShowNotification) {
           console.log('Showing notification');
           // Get chat name from the message or use a default
           const chatName = message.chat_name || 'Unknown Chat';
@@ -210,7 +226,7 @@ export const SocketProvider = ({ children }) => {
         newSocket.close();
       };
     }
-  }, [user, currentChatId, showBrowserNotification]);
+  }, [user, currentChatId, showBrowserNotification, isPageVisible]);
 
   const sendMessage = (chatId, messageData, messageType = 'text') => {
     if (socket && connected) {
@@ -280,7 +296,8 @@ export const SocketProvider = ({ children }) => {
     setCurrentChat,
     editMessage,
     notificationPermission,
-    requestNotificationPermission
+    requestNotificationPermission,
+    isPageVisible
   };
 
   return (
