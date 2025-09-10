@@ -148,7 +148,7 @@
 }
 
 .menu-item.delete-item {
-  color: #ff4757;
+  color: rebeccapurple;
 }
 
 .menu-item.delete-item:hover {
@@ -1430,7 +1430,7 @@
 }
 
 .delete-message-button {
-  color: #dc3545;
+  color: rebeccapurple;
 }
 
 .edit-message-button:hover {
@@ -1466,5 +1466,4 @@
   display: flex;
   align-items: center;
   font-size: 12px;
-  color: floralwhite;
 }
