@@ -39,6 +39,7 @@ const ChatWindow = ({ chat, onBack }) => {
   const quillRef = useRef(null);
   const canvasRef = useRef(null);
   const textareaRef = useRef(null);
+  const [inputValue, setInputValue] = useState('');
   const { socket, sendMessage, startTyping, stopTyping, editMessage } = useSocket();
   const { user } = useAuth();
 
@@ -234,14 +235,13 @@ const ChatWindow = ({ chat, onBack }) => {
   };
 
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = useCallback((e) => {
     if (e) {
       e.preventDefault();
     }
     
-    if (newMessage.trim()) {
-      const messageToSend = newMessage.trim();
-      
+    const messageToSend = inputValue.trim();
+    if (messageToSend) {
       // Format the message content with link detection
       const formattedContent = formatMessageContent(messageToSend);
       
@@ -254,7 +254,8 @@ const ChatWindow = ({ chat, onBack }) => {
       sendMessage(chat.id, messageData, 'text');
       
       // Clear input and other state
-      setNewMessage('');
+      setInputValue('');
+      setNewMessage(''); // Keep this for compatibility
       setQuotedMessage(null);
       stopTyping(chat.id);
       
@@ -267,7 +268,7 @@ const ChatWindow = ({ chat, onBack }) => {
         }, 0);
       }
     }
-  };
+  }, [inputValue, quotedMessage, sendMessage, chat.id, stopTyping, isTouchDevice, formatMessageContent]);
 
   const resizeImage = (file, maxWidth, maxHeight, quality) => {
     return new Promise((resolve, reject) => {
@@ -462,7 +463,8 @@ const ChatWindow = ({ chat, onBack }) => {
       if (response.ok) {
         const data = await response.json();
         // Don't add the message locally - it will be received via Socket.IO
-        setNewMessage(''); // Clear the input
+        setInputValue(''); // Clear the input
+        setNewMessage(''); // Keep this for compatibility
         
         // On mobile, refocus the textarea after clearing to keep keyboard open
         if (isTouchDevice) {
@@ -493,18 +495,18 @@ const ChatWindow = ({ chat, onBack }) => {
   };
 
 
-  const triggerImageUpload = () => {
+  const triggerImageUpload = useCallback(() => {
     fileInputRef.current?.click();
-  };
+  }, []);
 
-  const handleKeyPress = (e) => {
+  const handleKeyPress = useCallback((e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage(e);
     }
-  };
+  }, []);
 
-  const handleTyping = () => {
+  const handleTyping = useCallback(() => {
     startTyping(chat.id);
     
     if (typingTimeoutRef.current) {
@@ -514,7 +516,25 @@ const ChatWindow = ({ chat, onBack }) => {
     typingTimeoutRef.current = setTimeout(() => {
       stopTyping(chat.id);
     }, 1000);
-  };
+  }, [chat.id, startTyping, stopTyping]);
+
+  const handleInputChange = useCallback((e) => {
+    const value = e.target.value;
+    setInputValue(value);
+    setNewMessage(value); // Keep this for compatibility with other parts
+    handleTyping();
+  }, [handleTyping]);
+
+  const handleInputBlur = useCallback((e) => {
+    // Prevent blur on mobile to keep keyboard open
+    if (isTouchDevice && e.relatedTarget !== textareaRef.current) {
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 0);
+    }
+  }, [isTouchDevice]);
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
@@ -1249,21 +1269,11 @@ const ChatWindow = ({ chat, onBack }) => {
           </button>
           <textarea
             ref={textareaRef}
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onInput={(e) => setNewMessage(e.target.value)}
+            value={inputValue}
+            onInput={handleInputChange}
             onKeyPress={handleKeyPress}
             onFocus={handleTyping}
-            onBlur={(e) => {
-              // Prevent blur on mobile to keep keyboard open
-              if (isTouchDevice && e.relatedTarget !== textareaRef.current) {
-                setTimeout(() => {
-                  if (textareaRef.current) {
-                    textareaRef.current.focus();
-                  }
-                }, 0);
-              }
-            }}
+            onBlur={handleInputBlur}
             placeholder="Type a message... (links will be auto-detected)"
             className="message-input-textarea"
             style={{
@@ -1284,7 +1294,7 @@ const ChatWindow = ({ chat, onBack }) => {
           <button 
             className="send-button"
             onClick={handleSendMessage}
-            disabled={!newMessage.trim() || uploadingImage}
+            disabled={!inputValue.trim() || uploadingImage}
           >
             <Send size={20} />
           </button>
