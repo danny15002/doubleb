@@ -6,7 +6,7 @@
   position: relative;
 }
 
-.chat-header {
+.chat-window .chat-header {
   position: fixed;
   top: 0;
   left: 0;
@@ -410,7 +410,7 @@
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-  .chat-header {
+  .chat-window .chat-header {
     padding: 12px 15px;
   }
   

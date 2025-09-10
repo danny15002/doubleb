@@ -25,11 +25,13 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://192.168.1.136:3001', // TEMPORARY: Use local IP
+        // target: 'http://192.168.1.136:3001', // TEMPORARY: Use local IP
+        target: 'http://localhost:3001',
         changeOrigin: true,
       },
       '/socket.io': {
-        target: 'http://192.168.1.136:3001', // TEMPORARY: Use local IP
+        // target: 'http://192.168.1.136:3001', // TEMPORARY: Use local IP
+        target: 'http://localhost:3001',
         changeOrigin: true,
         ws: true,
       },

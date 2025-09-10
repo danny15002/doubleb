@@ -25,8 +25,6 @@ const io = new Server(server, {
           process.env.CLIENT_URL || "http://localhost:3000",
           "http://localhost:3000",
           "http://127.0.0.1:3000",
-          // TEMPORARY: Explicit local IP for development
-          "http://192.168.1.136:3000",
           // Allow access from local network IPs
           /^http:\/\/192\.168\.\d+\.\d+:3000$/,
           /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
