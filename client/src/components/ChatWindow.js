@@ -1133,6 +1133,7 @@ const ChatWindow = ({ chat, onBack }) => {
                     {renderMessageStatus(message)}
                     {isOwnMessage && message.message_type === 'text' && !editingMessage && (
                       <button 
+                        style={{ display: 'none' }}
                         className="edit-message-button"
                         onClick={() => startEditingMessage(message)}
                         title="Edit message"
