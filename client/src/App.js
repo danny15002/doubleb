@@ -50,33 +50,7 @@ function ChatApp() {
     }
   }, [socket, currentChat, setSocketCurrentChat]);
 
-  // Handle new message notifications
-  useEffect(() => {
-    if (socket) {
-      const handleNewMessage = (message) => {
-        // Only show notification if user is not in the current chat
-        if (currentChat && message.chatId !== currentChat.id) {
-          // Find the chat name (you might need to get this from your chat list)
-          const chatName = `Chat ${message.chatId}`;
-          
-          notificationManager.showLocalNotification(
-            `New message in ${chatName}`,
-            {
-              body: message.content || 'You have a new message',
-              tag: `message-${message.chatId}`,
-              data: { chatId: message.chatId }
-            }
-          );
-        }
-      };
-
-      socket.on('new-message', handleNewMessage);
-
-      return () => {
-        socket.off('new-message', handleNewMessage);
-      };
-    }
-  }, [socket, currentChat]);
+  // Note: New message notifications are handled in SocketContext.js with proper filtering
 
   // Show notification prompt after a delay
   useEffect(() => {
