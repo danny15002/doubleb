@@ -39,6 +39,7 @@ const ChatWindow = ({ chat, onBack }) => {
   const quillRef = useRef(null);
   const canvasRef = useRef(null);
   const textareaRef = useRef(null);
+  const pendingMessageRef = useRef(null);
   const { socket, sendMessage, startTyping, stopTyping, editMessage } = useSocket();
   const { user } = useAuth();
 
@@ -235,29 +236,67 @@ const ChatWindow = ({ chat, onBack }) => {
 
   // Maintain focus on textarea to prevent keyboard retraction on mobile
   const maintainTextareaFocus = () => {
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-      }
-    }, 0);
+    // Use multiple attempts with different delays to ensure focus works on mobile
+    const focusAttempts = [0, 10, 50, 100, 200];
+    
+    focusAttempts.forEach(delay => {
+      setTimeout(() => {
+        if (textareaRef.current) {
+          // Force focus and ensure the element is visible
+          textareaRef.current.focus();
+          textareaRef.current.blur(); // Blur first
+          setTimeout(() => {
+            textareaRef.current.focus();
+            // Scroll the textarea into view to ensure keyboard stays open
+            textareaRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 10);
+        }
+      }, delay);
+    });
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = (e) => {
+    if (e) {
+      e.preventDefault();
+    }
+    
     if (newMessage.trim()) {
+      // Store the current focus state and message content
+      const wasFocused = document.activeElement === textareaRef.current;
+      const messageToSend = newMessage.trim();
+      
       // Format the message content with link detection
-      const formattedContent = formatMessageContent(newMessage);
+      const formattedContent = formatMessageContent(messageToSend);
       
       const messageData = {
         content: formattedContent,
         quotedMessage: quotedMessage
       };
-      sendMessage(chat.id, messageData, 'text');
-      setNewMessage('');
-      setQuotedMessage(null);
-      stopTyping(chat.id);
       
-      // Maintain focus on the textarea after sending to prevent keyboard retraction on mobile
-      maintainTextareaFocus();
+      // Send the message first
+      sendMessage(chat.id, messageData, 'text');
+      
+      // For mobile devices, use a different strategy
+      if (isTouchDevice && wasFocused) {
+        // Don't clear the input immediately - let it stay visible
+        // This prevents the keyboard from retracting
+        setQuotedMessage(null);
+        stopTyping(chat.id);
+        
+        // Clear the input after a delay to maintain focus
+        setTimeout(() => {
+          setNewMessage('');
+          // Ensure focus is maintained
+          if (textareaRef.current) {
+            textareaRef.current.focus();
+          }
+        }, 300);
+      } else {
+        // For desktop, clear immediately
+        setNewMessage('');
+        setQuotedMessage(null);
+        stopTyping(chat.id);
+      }
     }
   };
 
@@ -486,7 +525,7 @@ const ChatWindow = ({ chat, onBack }) => {
   const handleKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      handleSendMessage(e);
     }
   };
 
@@ -1237,8 +1276,19 @@ const ChatWindow = ({ chat, onBack }) => {
             ref={textareaRef}
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
+            onInput={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             onFocus={handleTyping}
+            onBlur={(e) => {
+              // Prevent blur on mobile to keep keyboard open
+              if (isTouchDevice && e.relatedTarget !== textareaRef.current) {
+                setTimeout(() => {
+                  if (textareaRef.current) {
+                    textareaRef.current.focus();
+                  }
+                }, 0);
+              }
+            }}
             placeholder="Type a message... (links will be auto-detected)"
             className="message-input-textarea"
             style={{
