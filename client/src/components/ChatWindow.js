@@ -509,7 +509,7 @@ const ChatWindow = ({ chat, onBack }) => {
     try {
       const formData = new FormData();
       formData.append('image', file);
-      formData.append('caption', newMessage.trim());
+      formData.append('caption', inputValue.trim());
 
       const response = await fetch(getApiUrl(`/api/messages/${chat.id}/upload-image`), {
         method: 'POST',
