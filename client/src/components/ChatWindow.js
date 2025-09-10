@@ -412,36 +412,115 @@ const ChatWindow = ({ chat, onBack }) => {
           
           if (isPNG) {
             // For PNG files, we can only resize by dimensions, not quality
-            // Calculate the scale needed to get close to target size
+            // Use iterative approach to get closer to target size
             const currentSize = file.size;
-            const scale = Math.sqrt(targetSizeBytes / currentSize);
+            let bestBlob = null;
+            let bestScale = 1;
             
-            // Ensure we don't upscale
-            const finalScale = Math.min(scale, 1);
+            // Try different scales to find the best fit
+            const scales = [1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1];
             
-            const newWidth = Math.round(width * finalScale);
-            const newHeight = Math.round(height * finalScale);
-            
-            // Set canvas dimensions
-            canvas.width = newWidth;
-            canvas.height = newHeight;
-            
-            // Clear canvas and set image smoothing
-            ctx.clearRect(0, 0, newWidth, newHeight);
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            
-            // Draw and resize image
-            ctx.drawImage(img, 0, 0, newWidth, newHeight);
-            
-            // Convert to blob (PNG doesn't support quality parameter)
-            canvas.toBlob((blob) => {
-              if (!blob) {
-                reject(new Error('Failed to create resized image'));
+            const tryScale = (scaleIndex) => {
+              if (scaleIndex >= scales.length) {
+                // Use the best result we found
+                const finalScale = bestScale;
+                const newWidth = Math.round(width * finalScale);
+                const newHeight = Math.round(height * finalScale);
+                
+                // Set canvas dimensions
+                canvas.width = newWidth;
+                canvas.height = newHeight;
+                
+                // Clear canvas and set image smoothing
+                ctx.clearRect(0, 0, newWidth, newHeight);
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                
+                // Draw and resize image
+                ctx.drawImage(img, 0, 0, newWidth, newHeight);
+                
+                // Convert to blob
+                canvas.toBlob((blob) => {
+                  if (!blob) {
+                    reject(new Error('Failed to create resized image'));
+                    return;
+                  }
+                  
+                  const resizedFile = new File([blob], file.name, {
+                    type: file.type,
+                    lastModified: Date.now()
+                  });
+                  
+                  console.log('PNG resizing result:', {
+                    originalSize: file.size,
+                    resizedSize: blob.size,
+                    originalDimensions: `${img.width}x${img.height}`,
+                    resizedDimensions: `${newWidth}x${newHeight}`,
+                    scale: finalScale
+                  });
+                  
+                  resolve(resizedFile);
+                }, file.type);
                 return;
               }
-              resolve(blob);
-            }, file.type);
+              
+              const scale = scales[scaleIndex];
+              const newWidth = Math.round(width * scale);
+              const newHeight = Math.round(height * scale);
+              
+              // Set canvas dimensions
+              canvas.width = newWidth;
+              canvas.height = newHeight;
+              
+              // Clear canvas and set image smoothing
+              ctx.clearRect(0, 0, newWidth, newHeight);
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              
+              // Draw and resize image
+              ctx.drawImage(img, 0, 0, newWidth, newHeight);
+              
+              // Convert to blob
+              canvas.toBlob((blob) => {
+                if (!blob) {
+                  tryScale(scaleIndex + 1);
+                  return;
+                }
+                
+                const currentSize = blob.size;
+                
+                // If this size is acceptable (close to or under target), use it
+                if (currentSize <= targetSizeBytes * 1.1) { // Allow 10% over target
+                  const resizedFile = new File([blob], file.name, {
+                    type: file.type,
+                    lastModified: Date.now()
+                  });
+                  
+                  console.log('PNG resizing result:', {
+                    originalSize: file.size,
+                    resizedSize: blob.size,
+                    originalDimensions: `${img.width}x${img.height}`,
+                    resizedDimensions: `${newWidth}x${newHeight}`,
+                    scale: scale
+                  });
+                  
+                  resolve(resizedFile);
+                  return;
+                }
+                
+                // If this is better than our current best, save it
+                if (!bestBlob || (currentSize < bestBlob.size && currentSize > targetSizeBytes * 0.5)) {
+                  bestBlob = blob;
+                  bestScale = scale;
+                }
+                
+                // Try next scale
+                tryScale(scaleIndex + 1);
+              }, file.type);
+            };
+            
+            // Start trying scales
+            tryScale(0);
           } else {
             // For JPEG and other formats, use quality-based resizing
             let quality = 0.9;
@@ -449,11 +528,19 @@ const ChatWindow = ({ chat, onBack }) => {
             
             // Binary search to find the optimal quality that gets us close to target size
             const findOptimalQuality = (minQuality, maxQuality, iterations = 0) => {
-              if (iterations > 10) {
-                // Fallback to the best result we found
-                resolve(resizedBlob || file);
-                return;
+            if (iterations > 10) {
+              // Fallback to the best result we found
+              if (resizedBlob) {
+                const resizedFile = new File([resizedBlob], file.name, {
+                  type: file.type,
+                  lastModified: Date.now()
+                });
+                resolve(resizedFile);
+              } else {
+                resolve(file);
               }
+              return;
+            }
               
               const testQuality = (minQuality + maxQuality) / 2;
               
@@ -487,7 +574,11 @@ const ChatWindow = ({ chat, onBack }) => {
                 
                 if (Math.abs(sizeRatio - 1) < 0.1) {
                   // Close enough to target size
-                  resolve(blob);
+                  const resizedFile = new File([blob], file.name, {
+                    type: file.type,
+                    lastModified: Date.now()
+                  });
+                  resolve(resizedFile);
                 } else if (currentSize > targetSizeBytes) {
                   // Too big, reduce quality
                   findOptimalQuality(minQuality, testQuality, iterations + 1);
