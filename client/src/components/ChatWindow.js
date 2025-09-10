@@ -287,13 +287,14 @@ const ChatWindow = ({ chat, onBack }) => {
       stopTyping(chat.id);
       
       // On mobile, refocus the textarea after clearing to keep keyboard open
-      if (isTouchDevice) {
-        setTimeout(() => {
-          if (textareaRef.current) {
-            textareaRef.current.focus();
-          }
-        }, 0);
-      }
+      // if (isTouchDevice) {
+      setTimeout(() => {
+        console.log('refocusing textarea');
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 0);
+      // }
     }
   }, [inputValue, quotedMessage, sendMessage, chat.id, stopTyping, isTouchDevice, formatMessageContent]);
 
