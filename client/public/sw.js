@@ -1,7 +1,9 @@
 // Enhanced service worker for PWA functionality
-const CACHE_NAME = 'bb-chat-v2';
-const STATIC_CACHE = 'bb-chat-static-v2';
-const DYNAMIC_CACHE = 'bb-chat-dynamic-v2';
+const CACHE_VERSION = 'v4';
+const CACHE_NAME = `bb-chat-${CACHE_VERSION}`;
+const STATIC_CACHE = `bb-chat-static-${CACHE_VERSION}`;
+const DYNAMIC_CACHE = `bb-chat-dynamic-${CACHE_VERSION}`;
+const UPDATE_AVAILABLE_EVENT = 'update-available';
 
 const urlsToCache = [
   '/',
@@ -20,6 +22,7 @@ self.addEventListener('install', (event) => {
         return cache.addAll(urlsToCache);
       })
       .then(() => {
+        // Skip waiting to activate immediately
         return self.skipWaiting();
       })
   );
@@ -39,7 +42,18 @@ self.addEventListener('activate', (event) => {
         })
       );
     }).then(() => {
+      // Claim all clients immediately
       return self.clients.claim();
+    }).then(() => {
+      // Notify all clients that the service worker is ready
+      return self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({
+            type: 'SW_ACTIVATED',
+            message: 'Service Worker activated and ready'
+          });
+        });
+      });
     })
   );
 });
@@ -230,4 +244,40 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  
+  if (event.data && event.data.type === 'CHECK_UPDATE') {
+    // Check for updates
+    self.registration.update().then(() => {
+      console.log('Update check completed');
+    });
+  }
+});
+
+// Check for updates periodically
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'CHECK_UPDATE') {
+    self.registration.update();
+  }
+});
+
+// Handle update found
+self.addEventListener('updatefound', () => {
+  console.log('Update found, installing...');
+  const newWorker = self.registration.installing;
+  
+  newWorker.addEventListener('statechange', () => {
+    if (newWorker.state === 'installed') {
+      if (self.registration.waiting) {
+        // New service worker is waiting, notify clients
+        self.clients.matchAll().then((clients) => {
+          clients.forEach((client) => {
+            client.postMessage({
+              type: 'UPDATE_AVAILABLE',
+              message: 'A new version is available!'
+            });
+          });
+        });
+      }
+    }
+  });
 });

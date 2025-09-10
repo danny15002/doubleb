@@ -4,6 +4,7 @@ import { useSocket } from '../contexts/SocketContext';
 import { LogOut, Search, Plus, MessageCircle, Trash2, Bell, BellOff } from 'lucide-react';
 import { getApiUrl } from '../config/api';
 import NewChatModal from './NewChatModal';
+import VersionInfo from './VersionInfo';
 import './ChatList.css';
 
 const ChatList = ({ onChatSelect, selectedChat }) => {
@@ -361,6 +362,8 @@ const ChatList = ({ onChatSelect, selectedChat }) => {
         onClose={() => setShowNewChatModal(false)}
         onCreateChat={createChat}
       />
+      
+      <VersionInfo />
     </div>
   );
 };

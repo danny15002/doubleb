@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import VersionInfo from './VersionInfo';
 import './Auth.css';
 
 const Login = () => {
@@ -86,6 +87,8 @@ const Login = () => {
             </Link>
           </p>
         </div>
+        
+        <VersionInfo />
       </div>
     </div>
   );

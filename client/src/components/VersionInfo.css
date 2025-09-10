@@ -1,0 +1,31 @@
+.version-info {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px 12px;
+  margin: 0;
+}
+
+.version-text {
+  font-size: 11px;
+  color: #999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-weight: 400;
+  opacity: 0.8;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .version-text {
+    font-size: 10px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .version-text {
+    color: #666;
+  }
+}

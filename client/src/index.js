@@ -25,18 +25,7 @@ document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: 
 document.addEventListener('gesturechange', (e) => e.preventDefault(), { passive: false });
 document.addEventListener('gestureend', (e) => e.preventDefault(), { passive: false });
 
-// Register service worker
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((registration) => {
-        console.log('SW registered: ', registration);
-      })
-      .catch((registrationError) => {
-        console.log('SW registration failed: ', registrationError);
-      });
-  });
-}
+// Service worker registration is now handled in useServiceWorker hook
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

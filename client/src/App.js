@@ -3,11 +3,13 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider, useSocket } from './contexts/SocketContext';
+import { useServiceWorker } from './hooks/useServiceWorker';
 import Login from './components/Login';
 import Register from './components/Register';
 import ChatList from './components/ChatList';
 import ChatWindow from './components/ChatWindow';
 import NotificationPermission from './components/NotificationPermission';
+import UpdateNotification from './components/UpdateNotification';
 import notificationManager from './utils/notifications';
 import './App.css';
 
@@ -15,6 +17,14 @@ function ChatApp() {
   const { setCurrentChat: setSocketCurrentChat, socket } = useSocket();
   const [currentChat, setCurrentChat] = useState(null);
   const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
+  
+  // Service worker update handling
+  const { 
+    updateAvailable, 
+    isOnline, 
+    applyUpdate, 
+    dismissUpdate 
+  } = useServiceWorker();
 
   const handleChatSelect = (chat) => {
     setCurrentChat(chat);
@@ -65,6 +75,14 @@ function ChatApp() {
 
   return (
     <div className="app">
+      {/* Update Notification */}
+      <UpdateNotification 
+        updateAvailable={updateAvailable}
+        applyUpdate={applyUpdate}
+        dismissUpdate={dismissUpdate}
+        isOnline={isOnline}
+      />
+      
       <div className="app-container">
         <div className={`chat-list-container ${currentChat ? 'hidden md:block' : 'block'}`}>
           <ChatList onChatSelect={handleChatSelect} selectedChat={currentChat} />
