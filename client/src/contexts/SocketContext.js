@@ -290,6 +290,29 @@ export const SocketProvider = ({ children }) => {
     }
   };
 
+  const deleteMessage = async (messageId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${config.serverUrl}/api/messages/${messageId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return { success: true, data: data.data };
+      } else {
+        const error = await response.json();
+        return { success: false, error: error.error };
+      }
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      return { success: false, error: 'Failed to delete message' };
+    }
+  };
+
   const value = {
     socket,
     connected,
@@ -298,6 +321,7 @@ export const SocketProvider = ({ children }) => {
     stopTyping,
     setCurrentChat,
     editMessage,
+    deleteMessage,
     notificationPermission,
     requestNotificationPermission,
     isPageVisible

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, Send, MoreVertical, LogOut, Trash2, Image as ImageIcon, X, Check, CheckCheck, Edit2, Save } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, LogOut, Trash2, Image as ImageIcon, X, Check, CheckCheck, Edit2, Save, Trash } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { getApiUrl } from '../config/api';
@@ -41,7 +41,7 @@ const ChatWindow = ({ chat, onBack }) => {
   const canvasRef = useRef(null);
   const textareaRef = useRef(null);
   const [inputValue, setInputValue] = useState('');
-  const { socket, sendMessage, startTyping, stopTyping, editMessage } = useSocket();
+  const { socket, sendMessage, startTyping, stopTyping, editMessage, deleteMessage } = useSocket();
   const { user } = useAuth();
 
   const fetchMessages = useCallback(async () => {
@@ -173,6 +173,11 @@ const ChatWindow = ({ chat, onBack }) => {
     ));
   }, []);
 
+  const handleMessageDeleted = useCallback((data) => {
+    console.log('Message deleted received:', data);
+    setMessages(prev => prev.filter(message => message.id !== data.messageId));
+  }, []);
+
   useEffect(() => {
     if (socket) {
       socket.on('new-message', handleNewMessage);
@@ -181,6 +186,7 @@ const ChatWindow = ({ chat, onBack }) => {
       socket.on('reaction-updated', handleReactionUpdate);
       socket.on('message-status-updated', handleStatusUpdate);
       socket.on('message-edited', handleMessageEdited);
+      socket.on('message-deleted', handleMessageDeleted);
 
       return () => {
         socket.off('new-message', handleNewMessage);
@@ -189,9 +195,10 @@ const ChatWindow = ({ chat, onBack }) => {
         socket.off('reaction-updated', handleReactionUpdate);
         socket.off('message-status-updated', handleStatusUpdate);
         socket.off('message-edited', handleMessageEdited);
+        socket.off('message-deleted', handleMessageDeleted);
       };
     }
-  }, [socket, handleUserTyping, handleUserStoppedTyping, handleReactionUpdate, handleStatusUpdate, handleMessageEdited]);
+  }, [socket, handleUserTyping, handleUserStoppedTyping, handleReactionUpdate, handleStatusUpdate, handleMessageEdited, handleMessageDeleted]);
 
   // Configure Quill editor for better iOS compatibility
   useEffect(() => {
@@ -1263,6 +1270,16 @@ const ChatWindow = ({ chat, onBack }) => {
     }
   };
 
+  const handleDeleteMessage = async (messageId) => {
+    if (window.confirm('Are you sure you want to delete this message?')) {
+      const result = await deleteMessage(messageId);
+      
+      if (!result.success) {
+        alert(result.error || 'Failed to delete message');
+      }
+    }
+  };
+
   const handleEditKeyPress = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -1465,14 +1482,24 @@ const ChatWindow = ({ chat, onBack }) => {
                       {renderMessageStatus(message)}
                     </div>
                     {isOwnMessage && message.message_type === 'text' && (
-                      <button 
-                        style={hiddenButtonStyle}
-                        className="edit-message-button"
-                        onClick={() => startEditingMessage(message)}
-                        title="Edit message"
-                      >
-                        <Edit2 size={14} />
-                      </button>
+                      <div className="message-actions">
+                        <button 
+                          style={hiddenButtonStyle}
+                          className="edit-message-button"
+                          onClick={() => startEditingMessage(message)}
+                          title="Edit message"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button 
+                          style={hiddenButtonStyle}
+                          className="delete-message-button"
+                          onClick={() => handleDeleteMessage(message.id)}
+                          title="Delete message"
+                        >
+                          <Trash size={14} />
+                        </button>
+                      </div>
                     )}
                   </div>
                   {message.reactions && message.reactions.length > 0 && (

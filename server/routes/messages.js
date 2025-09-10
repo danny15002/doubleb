@@ -53,6 +53,7 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
         m.status,
         m.edited,
         m.edited_at,
+        m.deleted_at,
         m.created_at,
         m.updated_at,
         u.id as sender_id,
@@ -91,7 +92,7 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
         ) as reactions
       FROM messages m
       JOIN users u ON m.sender_id = u.id
-      WHERE m.chat_id = $1
+      WHERE m.chat_id = $1 AND m.deleted_at IS NULL
       ORDER BY m.created_at DESC
       LIMIT $2 OFFSET $3
     `, [chatId, limit, offset]);
@@ -495,6 +496,49 @@ router.patch('/:messageId/status', authenticateToken, [
     });
   } catch (error) {
     console.error('Update message status error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Delete message (soft delete)
+router.delete('/:messageId', authenticateToken, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+
+    // Check if message exists and user is the sender
+    const messageCheck = await pool.query(`
+      SELECT m.id, m.chat_id, m.sender_id, m.content, m.message_type
+      FROM messages m
+      WHERE m.id = $1 AND m.sender_id = $2 AND m.deleted_at IS NULL
+    `, [messageId, req.user.id]);
+
+    if (messageCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found or you are not the sender' });
+    }
+
+    const message = messageCheck.rows[0];
+
+    // Soft delete the message
+    await pool.query(`
+      UPDATE messages 
+      SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+    `, [messageId]);
+
+    // Broadcast the deleted message to all participants in the chat
+    const io = getIO();
+    io.to(`chat-${message.chat_id}`).emit('message-deleted', {
+      messageId: messageId,
+      chatId: message.chat_id,
+      user_id: req.user.id
+    });
+
+    res.json({ 
+      message: 'Message deleted successfully',
+      messageId: messageId
+    });
+  } catch (error) {
+    console.error('Delete message error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
