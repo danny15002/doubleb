@@ -39,7 +39,6 @@ const ChatWindow = ({ chat, onBack }) => {
   const quillRef = useRef(null);
   const canvasRef = useRef(null);
   const textareaRef = useRef(null);
-  const pendingMessageRef = useRef(null);
   const { socket, sendMessage, startTyping, stopTyping, editMessage } = useSocket();
   const { user } = useAuth();
 
@@ -127,7 +126,7 @@ const ChatWindow = ({ chat, onBack }) => {
         // Ensure textarea stays focused when keyboard is visible
         setTimeout(() => {
           if (textareaRef.current && !textareaRef.current.value) {
-            maintainTextareaFocus();
+            textareaRef.current.focus();
           }
         }, 100);
       }
@@ -234,26 +233,6 @@ const ChatWindow = ({ chat, onBack }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Maintain focus on textarea to prevent keyboard retraction on mobile
-  const maintainTextareaFocus = () => {
-    // Use multiple attempts with different delays to ensure focus works on mobile
-    const focusAttempts = [0, 10, 50, 100, 200];
-    
-    focusAttempts.forEach(delay => {
-      setTimeout(() => {
-        if (textareaRef.current) {
-          // Force focus and ensure the element is visible
-          textareaRef.current.focus();
-          textareaRef.current.blur(); // Blur first
-          setTimeout(() => {
-            textareaRef.current.focus();
-            // Scroll the textarea into view to ensure keyboard stays open
-            textareaRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 10);
-        }
-      }, delay);
-    });
-  };
 
   const handleSendMessage = (e) => {
     if (e) {
@@ -261,8 +240,6 @@ const ChatWindow = ({ chat, onBack }) => {
     }
     
     if (newMessage.trim()) {
-      // Store the current focus state and message content
-      const wasFocused = document.activeElement === textareaRef.current;
       const messageToSend = newMessage.trim();
       
       // Format the message content with link detection
@@ -276,26 +253,18 @@ const ChatWindow = ({ chat, onBack }) => {
       // Send the message first
       sendMessage(chat.id, messageData, 'text');
       
-      // For mobile devices, use a different strategy
-      if (isTouchDevice && wasFocused) {
-        // Don't clear the input immediately - let it stay visible
-        // This prevents the keyboard from retracting
-        setQuotedMessage(null);
-        stopTyping(chat.id);
-        
-        // Clear the input after a delay to maintain focus
+      // Clear input and other state
+      setNewMessage('');
+      setQuotedMessage(null);
+      stopTyping(chat.id);
+      
+      // On mobile, refocus the textarea after clearing to keep keyboard open
+      if (isTouchDevice) {
         setTimeout(() => {
-          setNewMessage('');
-          // Ensure focus is maintained
           if (textareaRef.current) {
             textareaRef.current.focus();
           }
-        }, 300);
-      } else {
-        // For desktop, clear immediately
-        setNewMessage('');
-        setQuotedMessage(null);
-        stopTyping(chat.id);
+        }, 0);
       }
     }
   };
@@ -495,8 +464,14 @@ const ChatWindow = ({ chat, onBack }) => {
         // Don't add the message locally - it will be received via Socket.IO
         setNewMessage(''); // Clear the input
         
-        // Maintain focus on the textarea after sending to prevent keyboard retraction on mobile
-        maintainTextareaFocus();
+        // On mobile, refocus the textarea after clearing to keep keyboard open
+        if (isTouchDevice) {
+          setTimeout(() => {
+            if (textareaRef.current) {
+              textareaRef.current.focus();
+            }
+          }, 0);
+        }
       } else if (response.status === 404 || response.status === 403) {
         // Chat not found or access denied - redirect back to chat list
         console.log('Chat not found or access denied during image upload, redirecting...');
