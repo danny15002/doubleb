@@ -10,7 +10,9 @@ const authenticateToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('JWT_SECRET exists in middleware:', !!process.env.JWT_SECRET);
+    console.log('Token to verify:', token.substring(0, 20) + '...');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret_key');
     
     // Verify user still exists
     const userResult = await pool.query(

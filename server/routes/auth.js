@@ -120,9 +120,11 @@ router.post('/login', [
     }
 
     // Generate JWT token
+    console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
+    console.log('JWT_SECRET length:', process.env.JWT_SECRET?.length);
     const token = jwt.sign(
       { userId: user.id, username: user.username },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || 'fallback_secret_key',
       { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
     );
 

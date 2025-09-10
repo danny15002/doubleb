@@ -230,6 +230,36 @@ const ChatWindow = ({ chat, onBack }) => {
     };
   }, []);
 
+  // Blur textarea when clicking outside on mobile
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      // Only handle on mobile devices
+      if (isTouchDevice && textareaRef.current) {
+        const textarea = textareaRef.current;
+        const inputContainer = textarea.closest('.message-input-container');
+        
+        // Check if the click is outside the input area
+        if (inputContainer && !inputContainer.contains(event.target)) {
+          // Only blur if the textarea is currently focused
+          if (document.activeElement === textarea) {
+            console.log('Blurring textarea due to outside click');
+            textarea.blur();
+          }
+        }
+      }
+    };
+
+    // Use both mousedown and touchstart for better mobile support
+    // touchstart is more reliable on mobile devices
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isTouchDevice]);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -552,17 +582,6 @@ const ChatWindow = ({ chat, onBack }) => {
     setNewMessage(value); // Keep this for compatibility with other parts
     handleTyping();
   }, [handleTyping]);
-
-  const handleInputBlur = useCallback((e) => {
-    // Prevent blur on mobile to keep keyboard open
-    if (isTouchDevice && e.relatedTarget !== textareaRef.current) {
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-        }
-      }, 0);
-    }
-  }, [isTouchDevice]);
 
   // Memoized style objects to prevent re-renders
   const imageStyle = useMemo(() => ({
@@ -1071,7 +1090,11 @@ const ChatWindow = ({ chat, onBack }) => {
     return (
       <div className="chat-window">
         <div className="chat-header">
-          <button className="back-button" onClick={onBack}>
+          <button 
+            className="back-button" 
+            onClick={onBack}
+            onMouseDown={(e) => e.preventDefault()} // Prevent focus on mouse down
+          >
             <ArrowLeft size={20} />
           </button>
           <div className="loading-header">
@@ -1084,9 +1107,25 @@ const ChatWindow = ({ chat, onBack }) => {
   }
 
   return (
-    <div className="chat-window">
+    <div 
+      className="chat-window"
+      onClick={(e) => {
+        // On mobile, clicking the chat area should blur the textarea
+        if (isTouchDevice && textareaRef.current && document.activeElement === textareaRef.current) {
+          // Only blur if clicking on the chat area itself, not on interactive elements
+          if (e.target === e.currentTarget || e.target.closest('.messages-container')) {
+            console.log('Blurring textarea due to chat area click');
+            textareaRef.current.blur();
+          }
+        }
+      }}
+    >
       <div className="chat-header">
-        <button className="back-button" onClick={onBack}>
+        <button 
+          className="back-button" 
+          onClick={onBack}
+          onMouseDown={(e) => e.preventDefault()} // Prevent focus on mouse down
+        >
           <ArrowLeft size={20} />
         </button>
         <div className="chat-info">
@@ -1108,7 +1147,11 @@ const ChatWindow = ({ chat, onBack }) => {
           </div>
         </div>
         <div className="more-menu-container" ref={menuRef}>
-          <button className="more-button" onClick={handleMenuClick}>
+          <button 
+            className="more-button" 
+            onClick={handleMenuClick}
+            onMouseDown={(e) => e.preventDefault()} // Prevent focus on mouse down
+          >
             <MoreVertical size={20} />
           </button>
           {showMenu && (
@@ -1116,6 +1159,7 @@ const ChatWindow = ({ chat, onBack }) => {
               <button 
                 className="menu-item" 
                 onClick={() => handleMenuAction('leave')}
+                onMouseDown={(e) => e.preventDefault()} // Prevent focus on mouse down
               >
                 <LogOut size={16} />
                 Leave Chat
@@ -1124,6 +1168,7 @@ const ChatWindow = ({ chat, onBack }) => {
                 <button 
                   className="menu-item delete-item" 
                   onClick={() => handleMenuAction('delete')}
+                  onMouseDown={(e) => e.preventDefault()} // Prevent focus on mouse down
                 >
                   <Trash2 size={16} />
                   Delete Chat
@@ -1296,6 +1341,7 @@ const ChatWindow = ({ chat, onBack }) => {
           <button 
             className="image-upload-button"
             onClick={triggerImageUpload}
+            onMouseDown={(e) => e.preventDefault()} // Prevent focus on mouse down
             disabled={uploadingImage}
             title="Upload image"
           >
@@ -1307,7 +1353,6 @@ const ChatWindow = ({ chat, onBack }) => {
             onInput={handleInputChange}
             onKeyPress={handleKeyPress}
             onFocus={handleTyping}
-            onBlur={handleInputBlur}
             placeholder="Type a message... (links will be auto-detected)"
             className="message-input-textarea"
             style={textareaStyle}
@@ -1315,6 +1360,7 @@ const ChatWindow = ({ chat, onBack }) => {
           <button 
             className="send-button"
             onClick={handleSendMessage}
+            onMouseDown={(e) => e.preventDefault()} // Prevent focus on mouse down
             disabled={!inputValue.trim() || uploadingImage}
           >
             <Send size={20} />

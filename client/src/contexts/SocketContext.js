@@ -86,7 +86,10 @@ export const SocketProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       const token = localStorage.getItem('token');
-      const newSocket = io(config.serverUrl, {
+      // TEMPORARY: Force local IP for socket connection
+      const socketUrl = import.meta.env.PROD ? config.serverUrl : 'http://192.168.1.136:3001';
+      console.log('Socket connecting to:', socketUrl); // Debug log
+      const newSocket = io(socketUrl, {
         auth: {
           token
         },

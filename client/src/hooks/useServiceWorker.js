@@ -3,26 +3,27 @@ import { useState, useEffect } from 'react';
 export const useServiceWorker = () => {
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [registration, setRegistration] = useState(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
 
   useEffect(() => {
+    let updateInterval;
+    let registration;
+
     // Register service worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js')
         .then((reg) => {
           console.log('Service Worker registered successfully:', reg);
           setRegistration(reg);
+          registration = reg;
           
           // Check for updates immediately
           reg.update();
           
           // Check for updates every 30 seconds
-          const updateInterval = setInterval(() => {
+          updateInterval = setInterval(() => {
             reg.update();
           }, 30000);
-          
-          // Clean up interval on unmount
-          return () => clearInterval(updateInterval);
         })
         .catch((error) => {
           console.error('Service Worker registration failed:', error);
@@ -45,12 +46,25 @@ export const useServiceWorker = () => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
-    navigator.serviceWorker.addEventListener('message', handleMessage);
+    // Only add service worker event listeners if service worker is supported
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleMessage);
+    }
+    
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
     return () => {
-      navigator.serviceWorker.removeEventListener('message', handleMessage);
+      // Clean up intervals
+      if (updateInterval) {
+        clearInterval(updateInterval);
+      }
+      
+      // Only remove service worker event listeners if service worker is supported
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleMessage);
+      }
+      
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };

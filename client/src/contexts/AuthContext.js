@@ -29,10 +29,13 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUser = async () => {
     try {
+      console.log('Fetching user with token:', localStorage.getItem('token'));
+      console.log('API URL:', getApiUrl('/api/auth/me'));
       const response = await axios.get(getApiUrl('/api/auth/me'));
       setUser(response.data.user);
     } catch (error) {
       console.error('Error fetching user:', error);
+      console.error('Error response:', error.response?.data);
       localStorage.removeItem('token');
       delete axios.defaults.headers.common['Authorization'];
     } finally {
@@ -42,6 +45,8 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
+      console.log('Attempting login with:', { username, password: '***' });
+      console.log('Login API URL:', getApiUrl('/api/auth/login'));
       const response = await axios.post(getApiUrl('/api/auth/login'), {
         username,
         password

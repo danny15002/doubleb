@@ -25,13 +25,16 @@ const io = new Server(server, {
           process.env.CLIENT_URL || "http://localhost:3000",
           "http://localhost:3000",
           "http://127.0.0.1:3000",
+          // TEMPORARY: Explicit local IP for development
+          "http://192.168.1.136:3000",
           // Allow access from local network IPs
           /^http:\/\/192\.168\.\d+\.\d+:3000$/,
           /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
           /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:3000$/
         ],
-    methods: ["GET", "POST"],
-    credentials: true
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization"]
   }
 });
 
@@ -49,24 +52,101 @@ const limiter = rateLimit({
 app.use(helmet());
 app.set('trust proxy', 1); // Trust first proxy for rate limiting
 app.use(limiter);
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.CLIENT_URL]
-    : [
-        process.env.CLIENT_URL || "http://localhost:3000",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        // Allow access from local network IPs
-        /^http:\/\/192\.168\.\d+\.\d+:3000$/,
-        /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
-        /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:3000$/
-      ],
+// CORS configuration with debugging
+const corsOptions = {
+  origin: function (origin, callback) {
+    console.log('CORS Origin check:', origin);
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) {
+      console.log('No origin, allowing request');
+      return callback(null, true);
+    }
+    
+    const allowedOrigins = process.env.NODE_ENV === 'production' 
+      ? [process.env.CLIENT_URL]
+      : [
+          process.env.CLIENT_URL || "http://localhost:3000",
+          "http://localhost:3000",
+          "http://127.0.0.1:3000",
+          // TEMPORARY: Explicit local IP for development
+          "http://192.168.1.136:3000",
+          // Allow access from local network IPs
+          /^http:\/\/192\.168\.\d+\.\d+:3000$/,
+          /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
+          /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:3000$/
+        ];
+    
+    // Check if origin is allowed
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return allowedOrigin === origin;
+      } else if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      console.log('Origin allowed:', origin);
+      callback(null, true);
+    } else {
+      console.log('Origin NOT allowed:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  optionsSuccessStatus: 200 // For legacy browser support
+};
+
+// Add comprehensive CORS debugging
+app.use((req, res, next) => {
+  console.log('=== CORS DEBUG ===');
+  console.log('Request from:', req.headers.origin);
+  console.log('Request method:', req.method);
+  console.log('Request URL:', req.url);
+  console.log('Request headers:', {
+    origin: req.headers.origin,
+    'access-control-request-method': req.headers['access-control-request-method'],
+    'access-control-request-headers': req.headers['access-control-request-headers']
+  });
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    console.log('Handling preflight request');
+    res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400'); // 24 hours
+    return res.status(200).end();
+  }
+  
+  next();
+});
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// CORS test endpoint
+app.get('/api/cors-test', (req, res) => {
+  console.log('CORS test endpoint hit from:', req.headers.origin);
+  res.json({ 
+    message: 'CORS is working!', 
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString(),
+    headers: req.headers
+  });
+});
+
+// Simple CORS test for preflight
+app.options('/api/cors-test', (req, res) => {
+  console.log('CORS preflight test from:', req.headers.origin);
+  res.status(200).end();
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -473,10 +553,11 @@ const startServer = async () => {
       process.exit(1);
     }
     
-    // Start the server
-    server.listen(PORT, () => {
+    // Start the server - bind to all interfaces for local network access
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`✅ Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🌐 Accessible at: http://localhost:${PORT} and http://192.168.1.136:${PORT}`);
     });
     
   } catch (error) {
