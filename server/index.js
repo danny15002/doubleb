@@ -24,7 +24,11 @@ const io = new Server(server, {
       : [
           process.env.CLIENT_URL || "http://localhost:3000",
           "http://localhost:3000",
-          "http://127.0.0.1:3000"
+          "http://127.0.0.1:3000",
+          // Allow access from local network IPs
+          /^http:\/\/192\.168\.\d+\.\d+:3000$/,
+          /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
+          /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:3000$/
         ],
     methods: ["GET", "POST"],
     credentials: true
@@ -51,7 +55,11 @@ app.use(cors({
     : [
         process.env.CLIENT_URL || "http://localhost:3000",
         "http://localhost:3000",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+        // Allow access from local network IPs
+        /^http:\/\/192\.168\.\d+\.\d+:3000$/,
+        /^http:\/\/10\.\d+\.\d+\.\d+:3000$/,
+        /^http:\/\/172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+:3000$/
       ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
