@@ -7,11 +7,11 @@ const { getIO } = require('../socket/socketManager');
 
 const router = express.Router();
 
-// Configure multer for image uploads (2MB limit)
+// Configure multer for image uploads (3MB limit)
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 2 * 1024 * 1024, // 2MB limit
+    fileSize: 3 * 1024 * 1024, // 3MB limit
   },
   fileFilter: (req, file, cb) => {
     // Check if file is an image
@@ -294,7 +294,7 @@ router.post('/:chatId/upload-image', authenticateToken, upload.single('image'), 
   } catch (error) {
     console.error('Upload image error:', error);
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'File size too large. Maximum 2MB allowed.' });
+      return res.status(400).json({ error: 'File size too large. Maximum 3MB allowed.' });
     }
     res.status(500).json({ error: 'Internal server error' });
   }

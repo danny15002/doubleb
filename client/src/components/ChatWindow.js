@@ -362,14 +362,27 @@ const ChatWindow = ({ chat, onBack }) => {
           // Draw and resize image
           ctx.drawImage(img, 0, 0, width, height);
           
-          // Convert to blob
-          canvas.toBlob((blob) => {
-            if (blob) {
-              resolve(blob);
-            } else {
-              reject(new Error('Failed to create resized image'));
-            }
-          }, file.type, quality);
+          // Convert to blob - handle PNG vs JPEG differently
+          const isPNG = file.type === 'image/png';
+          if (isPNG) {
+            // PNG doesn't support quality parameter
+            canvas.toBlob((blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Failed to create resized image'));
+              }
+            }, file.type);
+          } else {
+            // JPEG and other formats support quality
+            canvas.toBlob((blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Failed to create resized image'));
+              }
+            }, file.type, quality);
+          }
         } catch (error) {
           reject(error);
         }
@@ -394,25 +407,20 @@ const ChatWindow = ({ chat, onBack }) => {
           let { width, height } = img;
           const aspectRatio = width / height;
           
-          // Start with a quality of 0.9 and adjust if needed
-          let quality = 0.9;
-          let resizedBlob = null;
+          // Check if it's a PNG file
+          const isPNG = file.type === 'image/png';
           
-          // Binary search to find the optimal quality that gets us close to target size
-          const findOptimalQuality = (minQuality, maxQuality, iterations = 0) => {
-            if (iterations > 10) {
-              // Fallback to the best result we found
-              resolve(resizedBlob || file);
-              return;
-            }
+          if (isPNG) {
+            // For PNG files, we can only resize by dimensions, not quality
+            // Calculate the scale needed to get close to target size
+            const currentSize = file.size;
+            const scale = Math.sqrt(targetSizeBytes / currentSize);
             
-            const testQuality = (minQuality + maxQuality) / 2;
+            // Ensure we don't upscale
+            const finalScale = Math.min(scale, 1);
             
-            // Calculate dimensions based on current quality
-            // We'll use a simple heuristic: reduce dimensions by sqrt(quality) to roughly maintain file size
-            const scale = Math.sqrt(testQuality);
-            const newWidth = Math.round(width * scale);
-            const newHeight = Math.round(height * scale);
+            const newWidth = Math.round(width * finalScale);
+            const newHeight = Math.round(height * finalScale);
             
             // Set canvas dimensions
             canvas.width = newWidth;
@@ -426,32 +434,74 @@ const ChatWindow = ({ chat, onBack }) => {
             // Draw and resize image
             ctx.drawImage(img, 0, 0, newWidth, newHeight);
             
-            // Convert to blob
+            // Convert to blob (PNG doesn't support quality parameter)
             canvas.toBlob((blob) => {
               if (!blob) {
                 reject(new Error('Failed to create resized image'));
                 return;
               }
-              
-              const currentSize = blob.size;
-              const sizeRatio = currentSize / targetSizeBytes;
-              
-              if (Math.abs(sizeRatio - 1) < 0.1) {
-                // Close enough to target size
-                resolve(blob);
-              } else if (currentSize > targetSizeBytes) {
-                // Too big, reduce quality
-                findOptimalQuality(minQuality, testQuality, iterations + 1);
-              } else {
-                // Too small, increase quality (but save this as our best result so far)
-                resizedBlob = blob;
-                findOptimalQuality(testQuality, maxQuality, iterations + 1);
+              resolve(blob);
+            }, file.type);
+          } else {
+            // For JPEG and other formats, use quality-based resizing
+            let quality = 0.9;
+            let resizedBlob = null;
+            
+            // Binary search to find the optimal quality that gets us close to target size
+            const findOptimalQuality = (minQuality, maxQuality, iterations = 0) => {
+              if (iterations > 10) {
+                // Fallback to the best result we found
+                resolve(resizedBlob || file);
+                return;
               }
-            }, file.type, testQuality);
-          };
-          
-          // Start the binary search
-          findOptimalQuality(0.1, 0.95);
+              
+              const testQuality = (minQuality + maxQuality) / 2;
+              
+              // Calculate dimensions based on current quality
+              // We'll use a simple heuristic: reduce dimensions by sqrt(quality) to roughly maintain file size
+              const scale = Math.sqrt(testQuality);
+              const newWidth = Math.round(width * scale);
+              const newHeight = Math.round(height * scale);
+              
+              // Set canvas dimensions
+              canvas.width = newWidth;
+              canvas.height = newHeight;
+              
+              // Clear canvas and set image smoothing
+              ctx.clearRect(0, 0, newWidth, newHeight);
+              ctx.imageSmoothingEnabled = true;
+              ctx.imageSmoothingQuality = 'high';
+              
+              // Draw and resize image
+              ctx.drawImage(img, 0, 0, newWidth, newHeight);
+              
+              // Convert to blob
+              canvas.toBlob((blob) => {
+                if (!blob) {
+                  reject(new Error('Failed to create resized image'));
+                  return;
+                }
+                
+                const currentSize = blob.size;
+                const sizeRatio = currentSize / targetSizeBytes;
+                
+                if (Math.abs(sizeRatio - 1) < 0.1) {
+                  // Close enough to target size
+                  resolve(blob);
+                } else if (currentSize > targetSizeBytes) {
+                  // Too big, reduce quality
+                  findOptimalQuality(minQuality, testQuality, iterations + 1);
+                } else {
+                  // Too small, increase quality (but save this as our best result so far)
+                  resizedBlob = blob;
+                  findOptimalQuality(testQuality, maxQuality, iterations + 1);
+                }
+              }, file.type, testQuality);
+            };
+            
+            // Start the binary search
+            findOptimalQuality(0.1, 0.95);
+          }
           
         } catch (error) {
           reject(error);
@@ -470,30 +520,58 @@ const ChatWindow = ({ chat, onBack }) => {
     const file = event.target.files[0];
     if (!file) return;
 
+    console.log('Image upload started:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+
     // Check if it's an image
     if (!file.type.startsWith('image/')) {
       alert('Please select an image file.');
       return;
     }
 
+    // Log specific file type for debugging
+    console.log('File type detected:', file.type);
+    if (file.type === 'image/png') {
+      console.log('PNG file detected - will use dimension-based resizing');
+    }
+
     // If image is small enough, upload directly
     if (file.size <= 3 * 1024 * 1024) {
+      console.log('Image is small enough, uploading directly');
       await uploadImage(file);
       return;
     }
 
     // For larger images, automatically resize to fit within 3MB
     try {
+      console.log('Image is large, starting resize process');
       setUploadingImage(true);
       
       // Calculate optimal dimensions to get close to 3MB
       const targetSizeBytes = 3 * 1024 * 1024;
+      console.log('Target size:', targetSizeBytes, 'bytes');
+      
       const resizedFile = await resizeImageToTargetSize(file, targetSizeBytes);
+      console.log('Resize completed, resized file size:', resizedFile.size);
+      
+      // For PNG files, check if resizing was effective
+      if (file.type === 'image/png' && resizedFile.size > targetSizeBytes) {
+        console.warn('PNG file is still large after resizing. PNG files may not compress as much as JPEG files.');
+      }
       
       await uploadImage(resizedFile);
     } catch (error) {
-      console.error('Error resizing image:', error);
-      alert('Failed to resize image');
+      console.error('Error in image upload process:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        fileType: file.type,
+        fileSize: file.size
+      });
+      alert(`Failed to process image: ${error.message}`);
     } finally {
       setUploadingImage(false);
       // Reset file input
@@ -504,12 +582,20 @@ const ChatWindow = ({ chat, onBack }) => {
   };
 
   const uploadImage = async (file) => {
+    console.log('Starting upload for file:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+    
     setUploadingImage(true);
 
     try {
       const formData = new FormData();
       formData.append('image', file);
       formData.append('caption', inputValue.trim());
+
+      console.log('Sending upload request to:', getApiUrl(`/api/messages/${chat.id}/upload-image`));
 
       const response = await fetch(getApiUrl(`/api/messages/${chat.id}/upload-image`), {
         method: 'POST',
@@ -519,8 +605,11 @@ const ChatWindow = ({ chat, onBack }) => {
         body: formData
       });
 
+      console.log('Upload response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('Upload successful:', data);
         // Don't add the message locally - it will be received via Socket.IO
         setInputValue(''); // Clear the input
         setNewMessage(''); // Keep this for compatibility
