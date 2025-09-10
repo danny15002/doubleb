@@ -241,6 +241,31 @@ export const SocketProvider = ({ children }) => {
     }
   };
 
+  const editMessage = async (messageId, content) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${config.serverUrl}/api/messages/${messageId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ content })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return { success: true, data: data.data };
+      } else {
+        const error = await response.json();
+        return { success: false, error: error.error };
+      }
+    } catch (error) {
+      console.error('Error editing message:', error);
+      return { success: false, error: 'Failed to edit message' };
+    }
+  };
+
   const value = {
     socket,
     connected,
@@ -248,6 +273,7 @@ export const SocketProvider = ({ children }) => {
     startTyping,
     stopTyping,
     setCurrentChat,
+    editMessage,
     notificationPermission,
     requestNotificationPermission
   };

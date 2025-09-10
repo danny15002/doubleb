@@ -51,6 +51,8 @@ router.get('/:chatId', authenticateToken, async (req, res) => {
         m.quoted_content,
         m.quoted_sender_name,
         m.status,
+        m.edited,
+        m.edited_at,
         m.created_at,
         m.updated_at,
         u.id as sender_id,
@@ -493,6 +495,76 @@ router.patch('/:messageId/status', authenticateToken, [
     });
   } catch (error) {
     console.error('Update message status error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Edit message
+router.patch('/:messageId', authenticateToken, [
+  body('content').notEmpty().trim()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { messageId } = req.params;
+    const { content } = req.body;
+
+    // Check if message exists and user is the sender
+    const messageCheck = await pool.query(`
+      SELECT m.id, m.chat_id, m.sender_id, m.content, m.message_type
+      FROM messages m
+      WHERE m.id = $1 AND m.sender_id = $2
+    `, [messageId, req.user.id]);
+
+    if (messageCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found or you are not the sender' });
+    }
+
+    const message = messageCheck.rows[0];
+
+    // Only allow editing text messages
+    if (message.message_type !== 'text') {
+      return res.status(400).json({ error: 'Only text messages can be edited' });
+    }
+
+    // Update message content and mark as edited
+    const result = await pool.query(`
+      UPDATE messages 
+      SET content = $1, edited = TRUE, edited_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2
+      RETURNING id, content, edited, edited_at, updated_at
+    `, [content, messageId]);
+
+    const updatedMessage = result.rows[0];
+
+    // Get sender info for socket broadcast
+    const senderResult = await pool.query(
+      'SELECT id, username, display_name, avatar_url FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    const messageWithSender = {
+      ...updatedMessage,
+      sender_id: req.user.id,
+      username: senderResult.rows[0].username,
+      sender_name: senderResult.rows[0].display_name,
+      sender_avatar: senderResult.rows[0].avatar_url,
+      chat_id: message.chat_id
+    };
+
+    // Broadcast the edited message to all participants in the chat
+    const io = getIO();
+    io.to(`chat-${message.chat_id}`).emit('message-edited', messageWithSender);
+
+    res.json({ 
+      message: 'Message edited successfully',
+      data: messageWithSender
+    });
+  } catch (error) {
+    console.error('Edit message error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

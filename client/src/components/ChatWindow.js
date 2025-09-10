@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
-import { ArrowLeft, Send, MoreVertical, LogOut, Trash2, Image as ImageIcon, X, Check, CheckCheck } from 'lucide-react';
+import { ArrowLeft, Send, MoreVertical, LogOut, Trash2, Image as ImageIcon, X, Check, CheckCheck, Edit2, Save } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import { getApiUrl } from '../config/api';
 import './ChatWindow.css';
+
+let touch = false;
 
 const ChatWindow = ({ chat, onBack }) => {
   const [messages, setMessages] = useState([]);
@@ -24,6 +26,11 @@ const ChatWindow = ({ chat, onBack }) => {
   const [customEmoji, setCustomEmoji] = useState('');
   const [lastTapTime, setLastTapTime] = useState(0);
   const [lastTappedMessage, setLastTappedMessage] = useState(null);
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [editContent, setEditContent] = useState('');
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
+  const touchEventOccurred = useRef(false);
+  const lastEventTime = useRef(0);
   const tapTimeoutRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -31,7 +38,7 @@ const ChatWindow = ({ chat, onBack }) => {
   const fileInputRef = useRef(null);
   const quillRef = useRef(null);
   const canvasRef = useRef(null);
-  const { socket, sendMessage, startTyping, stopTyping } = useSocket();
+  const { socket, sendMessage, startTyping, stopTyping, editMessage } = useSocket();
   const { user } = useAuth();
 
   const fetchMessages = useCallback(async () => {
@@ -96,6 +103,30 @@ const ChatWindow = ({ chat, onBack }) => {
     }
   }, [chat, fetchMessages]);
 
+  // Detect touch device and handle touch events globally
+  useEffect(() => {
+    const checkTouchDevice = () => {
+      setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    };
+    
+    const handleGlobalTouchStart = () => {
+      touchEventOccurred.current = true;
+      // Reset after a short delay
+      setTimeout(() => {
+        touchEventOccurred.current = false;
+      }, 300);
+    };
+    
+    checkTouchDevice();
+    window.addEventListener('resize', checkTouchDevice);
+    document.addEventListener('touchstart', handleGlobalTouchStart, { passive: true });
+    
+    return () => {
+      window.removeEventListener('resize', checkTouchDevice);
+      document.removeEventListener('touchstart', handleGlobalTouchStart);
+    };
+  }, []);
+
   const handleReactionUpdate = useCallback((data) => {
     console.log('Reaction update received:', data);
     setMessages(prev => prev.map(message => 
@@ -114,6 +145,15 @@ const ChatWindow = ({ chat, onBack }) => {
     ));
   }, []);
 
+  const handleMessageEdited = useCallback((data) => {
+    console.log('Message edited received:', data);
+    setMessages(prev => prev.map(message => 
+      message.id === data.id 
+        ? { ...message, content: data.content, edited: data.edited, edited_at: data.edited_at }
+        : message
+    ));
+  }, []);
+
   useEffect(() => {
     if (socket) {
       socket.on('new-message', handleNewMessage);
@@ -121,6 +161,7 @@ const ChatWindow = ({ chat, onBack }) => {
       socket.on('user-stopped-typing', handleUserStoppedTyping);
       socket.on('reaction-updated', handleReactionUpdate);
       socket.on('message-status-updated', handleStatusUpdate);
+      socket.on('message-edited', handleMessageEdited);
 
       return () => {
         socket.off('new-message', handleNewMessage);
@@ -128,9 +169,10 @@ const ChatWindow = ({ chat, onBack }) => {
         socket.off('user-stopped-typing', handleUserStoppedTyping);
         socket.off('reaction-updated', handleReactionUpdate);
         socket.off('message-status-updated', handleStatusUpdate);
+        socket.off('message-edited', handleMessageEdited);
       };
     }
-  }, [socket, handleUserTyping, handleUserStoppedTyping, handleReactionUpdate, handleStatusUpdate]);
+  }, [socket, handleUserTyping, handleUserStoppedTyping, handleReactionUpdate, handleStatusUpdate, handleMessageEdited]);
 
   // Configure Quill editor for better iOS compatibility
   useEffect(() => {
@@ -666,23 +708,38 @@ const ChatWindow = ({ chat, onBack }) => {
 
   // Long press detection for reactions
   const handleMouseDown = (e, message) => {
-    e.preventDefault();
-    const timer = setTimeout(() => {
-      setSelectedMessageForReaction(message);
-      setShowEmojiPicker(true);
-    }, LONG_PRESS_DELAY); // 800ms long press
-    setLongPressTimer(timer);
+    // Only handle mouse events on non-touch devices and if no touch event just occurred
+    const now = Date.now();
+    if (e.type === 'mousedown' && !isTouchDevice && !touchEventOccurred.current && (now - lastEventTime.current) > 100) {
+      lastEventTime.current = now;
+      e.preventDefault();
+      const timer = setTimeout(() => {
+        setSelectedMessageForReaction(message);
+        setShowEmojiPicker(true);
+      }, LONG_PRESS_DELAY); // 800ms long press
+      setLongPressTimer(timer);
+    }
   };
 
   const handleMouseUp = (e, message) => {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      setLongPressTimer(null);
+    if (touch) {
+      return;
     }
-    
-    // Handle tap detection on mouse up (for desktop)
-    if (message) {
-      handleTap(message);
+    // Only handle mouse events on non-touch devices and if no touch event just occurred
+    console.log('handleMouseUp called', e);
+    const now = Date.now();
+    if (e.type === 'mouseup' && !isTouchDevice && !touchEventOccurred.current && (now - lastEventTime.current) > 100) {
+      lastEventTime.current = now;
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        setLongPressTimer(null);
+      }
+      
+      // Handle tap detection on mouse up (for desktop)
+      if (message) {
+        console.log('handleMouseUp called for message:', message.id);
+        handleTap(message);
+      }
     }
   };
 
@@ -694,8 +751,13 @@ const ChatWindow = ({ chat, onBack }) => {
   };
 
   // Touch events for mobile
-  const handleTouchStart = (e, message) => {
+  const handleTouchStart = (e, message) => {  
+    touch = true;
     console.log('handleTouchStart called for message:', message.id);
+    const now = Date.now();
+    lastEventTime.current = now;
+    touchEventOccurred.current = true;
+    
     const touch = e.touches[0];
     setSwipeStartX(touch.clientX);
     setSwipeStartY(touch.clientY);
@@ -705,9 +767,15 @@ const ChatWindow = ({ chat, onBack }) => {
       setShowEmojiPicker(true);
     }, LONG_PRESS_DELAY); // 800ms long press
     setLongPressTimer(timer);
+    
+    // Reset touch flag after a short delay
+    setTimeout(() => {
+      touchEventOccurred.current = false;
+    }, 300);
   };
 
   const handleTouchEnd = (e, message) => {
+    touch = false;
     console.log('handleTouchEnd called for message:', message.id, {
       swipeStartX,
       swipeStartY,
@@ -833,6 +901,43 @@ const ChatWindow = ({ chat, onBack }) => {
       removeReaction(messageId, emoji);
     } else {
       addReaction(messageId, emoji);
+    }
+  };
+
+  const startEditingMessage = (message) => {
+    if (message.sender_id === user?.id && message.message_type === 'text') {
+      setEditingMessage(message);
+      // Strip HTML tags for editing
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = message.content;
+      setEditContent(tempDiv.textContent || tempDiv.innerText || '');
+    }
+  };
+
+  const cancelEditing = () => {
+    setEditingMessage(null);
+    setEditContent('');
+  };
+
+  const saveEditedMessage = async () => {
+    if (!editingMessage || !editContent.trim()) return;
+
+    const result = await editMessage(editingMessage.id, editContent.trim());
+    
+    if (result.success) {
+      setEditingMessage(null);
+      setEditContent('');
+    } else {
+      alert(result.error || 'Failed to edit message');
+    }
+  };
+
+  const handleEditKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      saveEditedMessage();
+    } else if (e.key === 'Escape') {
+      cancelEditing();
     }
   };
 
@@ -983,16 +1088,58 @@ const ChatWindow = ({ chat, onBack }) => {
                       )}
                     </div>
                   ) : (
-                    <div 
-                      className="message-text"
-                      dangerouslySetInnerHTML={{ __html: message.content }}
-                    />
+                    <div className="message-text-container">
+                      {editingMessage && editingMessage.id === message.id ? (
+                        <div className="edit-message-container">
+                          <textarea
+                            value={editContent}
+                            onChange={(e) => setEditContent(e.target.value)}
+                            onKeyDown={handleEditKeyPress}
+                            className="edit-message-input"
+                            autoFocus
+                            rows={3}
+                          />
+                          <div className="edit-message-actions">
+                            <button 
+                              className="edit-save-button"
+                              onClick={saveEditedMessage}
+                              disabled={!editContent.trim()}
+                            >
+                              <Save size={16} />
+                            </button>
+                            <button 
+                              className="edit-cancel-button"
+                              onClick={cancelEditing}
+                            >
+                              <X size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div 
+                          className="message-text"
+                          dangerouslySetInnerHTML={{ __html: message.content }}
+                        />
+                      )}
+                    </div>
                   )}
                   <div className="message-time-status">
                     <span className="message-time">
                       {formatTime(message.created_at)}
+                      {message.edited && (
+                        <span className="edited-indicator"> (edited)</span>
+                      )}
                     </span>
                     {renderMessageStatus(message)}
+                    {isOwnMessage && message.message_type === 'text' && !editingMessage && (
+                      <button 
+                        className="edit-message-button"
+                        onClick={() => startEditingMessage(message)}
+                        title="Edit message"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                    )}
                   </div>
                   {message.reactions && message.reactions.length > 0 && (
                     <div className="message-reactions">

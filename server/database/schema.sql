@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS messages (
     quoted_content TEXT, -- Store quoted message content for display
     quoted_sender_name VARCHAR(100), -- Store quoted sender name for display
     status VARCHAR(20) DEFAULT 'sent' CHECK (status IN ('sent', 'delivered', 'read')),
+    edited BOOLEAN DEFAULT FALSE, -- Track if message has been edited
+    edited_at TIMESTAMP, -- When the message was last edited
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -71,6 +73,7 @@ CREATE TABLE IF NOT EXISTS message_reactions (
 CREATE INDEX IF NOT EXISTS idx_messages_chat_id ON messages(chat_id);
 CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
 CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(message_type);
+CREATE INDEX IF NOT EXISTS idx_messages_edited ON messages(edited);
 CREATE INDEX IF NOT EXISTS idx_chat_participants_user_id ON chat_participants(user_id);
 CREATE INDEX IF NOT EXISTS idx_chat_participants_chat_id ON chat_participants(chat_id);
 CREATE INDEX IF NOT EXISTS idx_message_reactions_message_id ON message_reactions(message_id);

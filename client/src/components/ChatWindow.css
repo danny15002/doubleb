@@ -971,7 +971,6 @@
 }
 
 .custom-emoji-input input {
-  flex: 1;
   padding: 8px 12px;
   border: 1px solid #ddd;
   border-radius: 6px;
@@ -1010,6 +1009,18 @@
   transition: transform 0.2s ease, background-color 0.2s ease;
   position: relative;
   cursor: pointer;
+  touch-action: manipulation; /* Prevent double-tap zoom on mobile */
+}
+
+/* Prevent mouse events on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .message {
+    pointer-events: auto;
+  }
+  
+  .message * {
+    pointer-events: auto;
+  }
 }
 
 .message:active {
@@ -1017,8 +1028,15 @@
   background-color: rgba(0, 0, 0, 0.1);
 }
 
-.message:hover {
-  background: rgba(0, 0, 0, 0.05);
+/* Only show hover effects on non-touch devices */
+@media (hover: hover) and (pointer: fine) {
+  .message:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+  
+  .message:hover .edit-message-button {
+    opacity: 1;
+  }
 }
 
 /* Message links */
@@ -1093,4 +1111,124 @@
     -ms-text-size-adjust: 100%;
     text-size-adjust: 100%;
   }
+}
+
+/* Edit message functionality */
+.message-text-container {
+  position: relative;
+}
+
+.edit-message-container {
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 8px;
+  margin: 4px 0;
+}
+
+.edit-message-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  resize: vertical;
+  min-height: 60px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #333;
+  padding: 4px 0;
+}
+
+.edit-message-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  justify-content: flex-end;
+}
+
+.edit-save-button,
+.edit-cancel-button {
+  background: #667eea;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  transition: background-color 0.2s ease;
+}
+
+.edit-save-button:hover {
+  background: #5a6fd8;
+}
+
+.edit-save-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.edit-cancel-button {
+  background: #6c757d;
+}
+
+.edit-cancel-button:hover {
+  background: #5a6268;
+}
+
+.edit-message-button {
+  background: none;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  margin-left: 8px;
+  opacity: 0;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+/* Show edit button on hover for desktop */
+@media (hover: hover) and (pointer: fine) {
+  .message:hover .edit-message-button {
+    opacity: 1;
+  }
+  
+  .edit-message-button:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: #333;
+  }
+}
+
+/* Show edit button on touch devices when message is active/tapped */
+@media (hover: none) and (pointer: coarse) {
+  .message:active .edit-message-button {
+    opacity: 1;
+  }
+}
+
+.edited-indicator {
+  color: #666;
+  font-style: italic;
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.message-time-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.message-time {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #666;
 }
