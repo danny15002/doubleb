@@ -7,7 +7,7 @@ import 'react-quill/dist/quill.snow.css';
 import { getApiUrl } from '../config/api';
 import './ChatWindow.css';
 
-let touch = false;
+let touchOngoing = false;
 
 const ChatWindow = ({ chat, onBack }) => {
   const [messages, setMessages] = useState([]);
@@ -722,7 +722,7 @@ const ChatWindow = ({ chat, onBack }) => {
   };
 
   const handleMouseUp = (e, message) => {
-    if (touch) {
+    if (touchOngoing) {
       return;
     }
     // Only handle mouse events on non-touch devices and if no touch event just occurred
@@ -752,7 +752,7 @@ const ChatWindow = ({ chat, onBack }) => {
 
   // Touch events for mobile
   const handleTouchStart = (e, message) => {  
-    touch = true;
+    touchOngoing = true;
     console.log('handleTouchStart called for message:', message.id);
     const now = Date.now();
     lastEventTime.current = now;
@@ -775,7 +775,7 @@ const ChatWindow = ({ chat, onBack }) => {
   };
 
   const handleTouchEnd = (e, message) => {
-    touch = false;
+    touchOngoing = false;
     console.log('handleTouchEnd called for message:', message.id, {
       swipeStartX,
       swipeStartY,
@@ -1267,6 +1267,7 @@ const ChatWindow = ({ chat, onBack }) => {
             <div className="custom-emoji-section">
               <div className="custom-emoji-input">
                 <input
+                  id="custom-emoji-input"
                   type="text"
                   placeholder="Type any emoji..."
                   value={customEmoji}
