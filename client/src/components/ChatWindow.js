@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSocket } from '../contexts/SocketContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, Send, MoreVertical, LogOut, Trash2, Image as ImageIcon, X, Check, CheckCheck, Edit2, Save } from 'lucide-react';
@@ -535,6 +535,40 @@ const ChatWindow = ({ chat, onBack }) => {
       }, 0);
     }
   }, [isTouchDevice]);
+
+  // Memoized style objects to prevent re-renders
+  const imageStyle = useMemo(() => ({
+    maxWidth: '300px',
+    maxHeight: '300px',
+    borderRadius: '8px'
+  }), []);
+
+  const hiddenButtonStyle = useMemo(() => ({
+    display: 'none'
+  }), []);
+
+  const hiddenInputStyle = useMemo(() => ({
+    display: 'none'
+  }), []);
+
+  const textareaStyle = useMemo(() => ({
+    width: '100%',
+    minHeight: '40px',
+    maxHeight: '120px',
+    border: 'none',
+    outline: 'none',
+    resize: 'none',
+    fontSize: '14px',
+    lineHeight: '1.4',
+    fontFamily: 'inherit',
+    backgroundColor: 'transparent',
+    padding: '8px 0',
+    color: '#333'
+  }), []);
+
+  const hiddenCanvasStyle = useMemo(() => ({
+    display: 'none'
+  }), []);
 
   const formatTime = (timestamp) => {
     const date = new Date(timestamp);
@@ -1143,7 +1177,7 @@ const ChatWindow = ({ chat, onBack }) => {
                         <img 
                           src={`data:${message.image_data.mimetype};base64,${message.image_data.data}`}
                           alt={message.image_data.filename}
-                          style={{ maxWidth: '300px', maxHeight: '300px', borderRadius: '8px' }}
+                          style={imageStyle}
                         />
                       )}
                       {message.content && (
@@ -1199,7 +1233,7 @@ const ChatWindow = ({ chat, onBack }) => {
                     {renderMessageStatus(message)}
                     {isOwnMessage && message.message_type === 'text' && !editingMessage && (
                       <button 
-                        style={{ display: 'none' }}
+                        style={hiddenButtonStyle}
                         className="edit-message-button"
                         onClick={() => startEditingMessage(message)}
                         title="Edit message"
@@ -1257,7 +1291,7 @@ const ChatWindow = ({ chat, onBack }) => {
             ref={fileInputRef}
             onChange={handleImageUpload}
             accept="image/*"
-            style={{ display: 'none' }}
+            style={hiddenInputStyle}
           />
           <button 
             className="image-upload-button"
@@ -1276,20 +1310,7 @@ const ChatWindow = ({ chat, onBack }) => {
             onBlur={handleInputBlur}
             placeholder="Type a message... (links will be auto-detected)"
             className="message-input-textarea"
-            style={{
-              width: '100%',
-              minHeight: '40px',
-              maxHeight: '120px',
-              border: 'none',
-              outline: 'none',
-              resize: 'none',
-              fontSize: '14px',
-              lineHeight: '1.4',
-              fontFamily: 'inherit',
-              backgroundColor: 'transparent',
-              padding: '8px 0',
-              color: '#333'
-            }}
+            style={textareaStyle}
           />
           <button 
             className="send-button"
@@ -1307,7 +1328,7 @@ const ChatWindow = ({ chat, onBack }) => {
       </div>
 
       {/* Hidden canvas for image resizing */}
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
+      <canvas ref={canvasRef} style={hiddenCanvasStyle} />
 
       {/* Emoji Picker Modal */}
       {showEmojiPicker && (
