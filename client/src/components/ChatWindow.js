@@ -780,7 +780,7 @@ const ChatWindow = ({ chat, onBack }) => {
   }), []);
 
   const hiddenButtonStyle = useMemo(() => ({
-    display: 'none'
+    // Always visible for mobile-first design
   }), []);
 
   const hiddenInputStyle = useMemo(() => ({
@@ -1218,13 +1218,28 @@ const ChatWindow = ({ chat, onBack }) => {
       // Strip HTML tags for editing
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = message.content;
-      setEditContent(tempDiv.textContent || tempDiv.innerText || '');
+      const plainText = tempDiv.textContent || tempDiv.innerText || '';
+      setEditContent(plainText);
+      
+      // Clear any quoted message when editing
+      setQuotedMessage(null);
+      
+      // Focus the textarea and move cursor to end after a short delay
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          // Move cursor to end of text
+          const textLength = plainText.length;
+          textareaRef.current.setSelectionRange(textLength, textLength);
+        }
+      }, 100);
     }
   };
 
   const cancelEditing = () => {
     setEditingMessage(null);
     setEditContent('');
+    setInputValue(''); // Clear the input as well
   };
 
   const saveEditedMessage = async () => {
@@ -1235,6 +1250,14 @@ const ChatWindow = ({ chat, onBack }) => {
     if (result.success) {
       setEditingMessage(null);
       setEditContent('');
+      setInputValue(''); // Clear the input as well
+      
+      // Focus the textarea after saving
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 100);
     } else {
       alert(result.error || 'Failed to edit message');
     }
@@ -1425,49 +1448,23 @@ const ChatWindow = ({ chat, onBack }) => {
                     </div>
                   ) : (
                     <div className="message-text-container">
-                      {editingMessage && editingMessage.id === message.id ? (
-                        <div className="edit-message-container">
-                          <textarea
-                            value={editContent}
-                            onChange={(e) => setEditContent(e.target.value)}
-                            onKeyDown={handleEditKeyPress}
-                            className="edit-message-input"
-                            autoFocus
-                            rows={3}
-                          />
-                          <div className="edit-message-actions">
-                            <button 
-                              className="edit-save-button"
-                              onClick={saveEditedMessage}
-                              disabled={!editContent.trim()}
-                            >
-                              <Save size={16} />
-                            </button>
-                            <button 
-                              className="edit-cancel-button"
-                              onClick={cancelEditing}
-                            >
-                              <X size={16} />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div 
-                          className="message-text"
-                          dangerouslySetInnerHTML={{ __html: message.content }}
-                        />
-                      )}
+                      <div 
+                        className="message-text"
+                        dangerouslySetInnerHTML={{ __html: message.content }}
+                      />
                     </div>
                   )}
                   <div className="message-time-status">
-                    <span className="message-time">
-                      {formatTime(message.created_at)}
-                      {message.edited && (
-                        <span className="edited-indicator"> (edited)</span>
-                      )}
-                    </span>
-                    {renderMessageStatus(message)}
-                    {isOwnMessage && message.message_type === 'text' && !editingMessage && (
+                    <div className="message-time-status-left">
+                      <span className="message-time">
+                        {formatTime(message.created_at)}
+                        {message.edited && (
+                          <span className="edited-indicator"> (edited)</span>
+                        )}
+                      </span>
+                      {renderMessageStatus(message)}
+                    </div>
+                    {isOwnMessage && message.message_type === 'text' && (
                       <button 
                         style={hiddenButtonStyle}
                         className="edit-message-button"
@@ -1501,7 +1498,27 @@ const ChatWindow = ({ chat, onBack }) => {
       </div>
 
       <div className="message-input-container">
-        {quotedMessage && (
+        {editingMessage && (
+          <div className="edit-message-preview">
+            <div className="edit-message-preview-content">
+              <span className="edit-sender">
+                Editing message
+              </span>
+              <div 
+                className="edit-text"
+                dangerouslySetInnerHTML={{ __html: editingMessage.content }}
+              />
+            </div>
+            <button 
+              className="remove-edit-button"
+              onClick={cancelEditing}
+              title="Cancel edit"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
+        {quotedMessage && !editingMessage && (
           <div className="quoted-message-preview">
             <div className="quoted-message-preview-content">
               <span className="quoted-sender">
@@ -1540,22 +1557,44 @@ const ChatWindow = ({ chat, onBack }) => {
           </button>
           <textarea
             ref={textareaRef}
-            value={inputValue}
-            onInput={handleInputChange}
-            onKeyPress={handleKeyPress}
+            value={editingMessage ? editContent : inputValue}
+            onInput={editingMessage ? (e) => setEditContent(e.target.value) : handleInputChange}
+            onKeyPress={editingMessage ? handleEditKeyPress : handleKeyPress}
             onFocus={handleTyping}
-            placeholder="Type a message... (links will be auto-detected)"
+            placeholder={editingMessage ? "Edit your message..." : "Type a message... (links will be auto-detected)"}
             className="message-input-textarea"
             style={textareaStyle}
           />
-          <button 
-            className="send-button"
-            onClick={handleSendMessage}
-            onMouseDown={(e) => e.preventDefault()} // Prevent focus on mouse down
-            disabled={!inputValue.trim() || uploadingImage}
-          >
-            <Send size={20} />
-          </button>
+          {editingMessage ? (
+            <>
+              <button 
+                className="edit-save-button"
+                onClick={saveEditedMessage}
+                onMouseDown={(e) => e.preventDefault()}
+                disabled={!editContent.trim() || uploadingImage}
+                title="Save changes"
+              >
+                <Save size={20} />
+              </button>
+              <button 
+                className="edit-cancel-button"
+                onClick={cancelEditing}
+                onMouseDown={(e) => e.preventDefault()}
+                title="Cancel edit"
+              >
+                <X size={20} />
+              </button>
+            </>
+          ) : (
+            <button 
+              className="send-button"
+              onClick={handleSendMessage}
+              onMouseDown={(e) => e.preventDefault()} // Prevent focus on mouse down
+              disabled={!inputValue.trim() || uploadingImage}
+            >
+              <Send size={20} />
+            </button>
+          )}
         </div>
         {uploadingImage && (
           <div className="upload-status">

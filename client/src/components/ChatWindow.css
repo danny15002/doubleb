@@ -830,17 +830,10 @@
 }
 
 /* Message status indicators */
-.message-time-status {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-}
 
 .message-status {
   display: flex;
   align-items: center;
-  gap: 2px;
   margin-left: 4px;
 }
 
@@ -1067,17 +1060,6 @@
 .message:active {
   transform: scale(0.98);
   background-color: rgba(0, 0, 0, 0.1);
-}
-
-/* Only show hover effects on non-touch devices */
-@media (hover: hover) and (pointer: fine) {
-  .message:hover {
-    background: rgba(0, 0, 0, 0.05);
-  }
-  
-  .message:hover .edit-message-button {
-    opacity: 1;
-  }
 }
 
 /* Message links */
@@ -1341,19 +1323,70 @@
   justify-content: flex-end;
 }
 
+/* Edit message preview styles */
+.edit-message-preview {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.edit-message-preview-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.edit-sender {
+  font-size: 0.8rem;
+  color: #856404;
+  font-weight: 500;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.edit-text {
+  font-size: 0.9rem;
+  color: #856404;
+  line-height: 1.4;
+  word-wrap: break-word;
+}
+
+.remove-edit-button {
+  background: none;
+  border: none;
+  color: #856404;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.remove-edit-button:hover {
+  background: rgba(133, 100, 4, 0.1);
+}
+
+/* Edit buttons in input area */
 .edit-save-button,
 .edit-cancel-button {
   background: #667eea;
   color: white;
   border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
+  justify-content: center;
   transition: background-color 0.2s ease;
+  flex-shrink: 0;
 }
 
 .edit-save-button:hover {
@@ -1376,34 +1409,14 @@
 .edit-message-button {
   background: none;
   border: none;
-  color: #666;
+  color: darkmagenta;
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
-  margin-left: 8px;
-  opacity: 0;
+  opacity: 1; /* Always visible for mobile-first design */
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-}
-
-/* Show edit button on hover for desktop */
-@media (hover: hover) and (pointer: fine) {
-  .message:hover .edit-message-button {
-    opacity: 1;
-  }
-  
-  .edit-message-button:hover {
-    background: rgba(0, 0, 0, 0.1);
-    color: #333;
-  }
-}
-
-/* Show edit button on touch devices when message is active/tapped */
-@media (hover: none) and (pointer: coarse) {
-  .message:active .edit-message-button {
-    opacity: 1;
-  }
 }
 
 .edited-indicator {
@@ -1420,9 +1433,15 @@
   margin-top: 4px;
 }
 
+.message-time-status-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .message-time {
   display: flex;
   align-items: center;
   font-size: 12px;
-  color: #666;
+  color: floralwhite;
 }
