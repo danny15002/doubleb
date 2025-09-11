@@ -23,6 +23,7 @@ const NotificationPermission = ({ onPermissionGranted }) => {
     setIsLoading(true);
     
     try {
+      console.log('Requesting notification permission');
       const granted = await notificationManager.requestPermission();
       setPermissionStatus(notificationManager.permission);
       
