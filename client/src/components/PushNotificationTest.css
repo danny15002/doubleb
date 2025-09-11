@@ -1,0 +1,145 @@
+.push-notification-test {
+  padding: 20px;
+  max-width: 600px;
+  margin: 0 auto;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.push-notification-test h3 {
+  margin-top: 0;
+  color: #333;
+  text-align: center;
+}
+
+.push-notification-test p {
+  color: #666;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.test-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.test-buttons button {
+  padding: 10px 15px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.test-buttons button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #0056b3;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #545b62;
+}
+
+.btn-info {
+  background: #17a2b8;
+  color: white;
+}
+
+.btn-info:hover:not(:disabled) {
+  background: #138496;
+}
+
+.btn-success {
+  background: #28a745;
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #1e7e34;
+}
+
+.test-result {
+  padding: 15px;
+  border-radius: 5px;
+  margin-bottom: 20px;
+  font-family: monospace;
+}
+
+.test-result.success {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  color: #155724;
+}
+
+.test-result.error {
+  background: #f8d7da;
+  border: 1px solid #f5c6cb;
+  color: #721c24;
+}
+
+.test-result.info {
+  background: #d1ecf1;
+  border: 1px solid #bee5eb;
+  color: #0c5460;
+}
+
+.test-result pre {
+  background: rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  border-radius: 3px;
+  margin-top: 10px;
+  font-size: 12px;
+  overflow-x: auto;
+}
+
+.test-info {
+  background: white;
+  padding: 15px;
+  border-radius: 5px;
+  border: 1px solid #dee2e6;
+}
+
+.test-info h4 {
+  margin-top: 0;
+  color: #333;
+}
+
+.test-info ol {
+  margin: 10px 0;
+  padding-left: 20px;
+}
+
+.test-info li {
+  margin: 5px 0;
+  color: #666;
+}
+
+@media (max-width: 768px) {
+  .test-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  .push-notification-test {
+    margin: 10px;
+    padding: 15px;
+  }
+}

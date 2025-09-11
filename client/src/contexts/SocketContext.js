@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import toast from 'react-hot-toast';
 import { useAuth } from './AuthContext';
 import { config } from '../config/api';
+import notificationManager from '../utils/notifications';
 
 const SocketContext = createContext();
 
@@ -22,15 +23,36 @@ export const SocketProvider = ({ children }) => {
   const [isPageVisible, setIsPageVisible] = useState(!document.hidden);
   const { user } = useAuth();
 
-  // Request notification permission
+  // Request notification permission and subscribe to push notifications
   useEffect(() => {
     if ('Notification' in window && window.Notification) {
       setNotificationPermission(window.Notification.permission);
       
       // Only request permission if it's default and user is authenticated
       if (window.Notification.permission === 'default' && user) {
-        window.Notification.requestPermission().then(permission => {
+        window.Notification.requestPermission().then(async (permission) => {
           setNotificationPermission(permission);
+          
+          // If permission granted, subscribe to push notifications
+          if (permission === 'granted') {
+            try {
+              const subscription = await notificationManager.subscribeToPush();
+              if (subscription) {
+                console.log('Push notification subscription successful');
+              }
+            } catch (error) {
+              console.error('Failed to subscribe to push notifications:', error);
+            }
+          }
+        });
+      } else if (window.Notification.permission === 'granted' && user) {
+        // Permission already granted, subscribe to push notifications
+        notificationManager.subscribeToPush().then(subscription => {
+          if (subscription) {
+            console.log('Push notification subscription successful (existing permission)');
+          }
+        }).catch(error => {
+          console.error('Failed to subscribe to push notifications:', error);
         });
       }
     }
@@ -107,26 +129,63 @@ export const SocketProvider = ({ children }) => {
   }, []);
 
   const showBrowserNotification = useCallback(async (title, options) => {
-    if (notificationPermission === 'granted') {
+    // iOS PWA fix: Always check current permission state, not cached state
+    const currentPermission = window.Notification ? window.Notification.permission : 'denied';
+    
+    if (currentPermission === 'granted') {
       try {
         // Try PWA notification first (through service worker) - works when app is hidden
         if ('serviceWorker' in navigator) {
           const registration = await navigator.serviceWorker.ready;
           if (registration.active) {
-            // Send message to service worker to show notification
-            registration.active.postMessage({
-              type: 'SHOW_NOTIFICATION',
-              title,
-              options: {
-                icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
-                badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
-                requireInteraction: true,
-                silent: false,
-                ...options
-              }
-            });
-            console.log('PWA notification sent to service worker');
-            return;
+            try {
+              // iOS PWA fix: Add timeout to detect unresponsive service worker
+              const notificationPromise = new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                  reject(new Error('Service worker notification timeout'));
+                }, 2000); // 2 second timeout
+                
+                // Listen for response from service worker
+                const handleMessage = (event) => {
+                  if (event.data && event.data.type === 'NOTIFICATION_RESPONSE') {
+                    clearTimeout(timeout);
+                    navigator.serviceWorker.removeEventListener('message', handleMessage);
+                    resolve();
+                  }
+                };
+                
+                navigator.serviceWorker.addEventListener('message', handleMessage);
+                
+                // Send message to service worker to show notification
+                registration.active.postMessage({
+                  type: 'SHOW_NOTIFICATION',
+                  title,
+                  options: {
+                    icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
+                    badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
+                    requireInteraction: true,
+                    silent: false,
+                    ...options
+                  }
+                });
+                
+                // For iOS, don't wait for response as it may not come
+                if (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')) {
+                  clearTimeout(timeout);
+                  navigator.serviceWorker.removeEventListener('message', handleMessage);
+                  resolve();
+                }
+              });
+              
+              await notificationPromise;
+              console.log('PWA notification sent to service worker');
+              return;
+            } catch (postMessageError) {
+              console.error('Failed to send message to service worker:', postMessageError);
+              // Fall through to browser notification fallback
+            }
+          } else {
+            console.warn('Service worker not active, falling back to browser notification');
           }
         }
         
@@ -154,12 +213,23 @@ export const SocketProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('Failed to show notification:', error);
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+          permission: currentPermission,
+          serviceWorkerSupported: 'serviceWorker' in navigator,
+          notificationSupported: 'Notification' in window
+        });
+        
         // iOS PWA fix: If notification fails, try to refresh capability
         if (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')) {
-          console.log('Notification failed, attempting capability refresh');
+          console.log('iOS notification failed, attempting capability refresh');
           refreshNotificationCapability();
         }
       }
+    } else {
+      console.warn('Notification permission not granted:', currentPermission);
     }
   }, [notificationPermission, refreshNotificationCapability]);
 
@@ -483,6 +553,24 @@ export const SocketProvider = ({ children }) => {
     }
   };
 
+  // iOS PWA fix: Test notification function for debugging
+  const testNotification = useCallback(async () => {
+    console.log('Testing notification...');
+    console.log('Current permission:', window.Notification ? window.Notification.permission : 'not supported');
+    console.log('Service worker supported:', 'serviceWorker' in navigator);
+    console.log('Page visible:', !document.hidden);
+    
+    try {
+      await showBrowserNotification('Test Notification', {
+        body: 'This is a test notification to check if notifications are working',
+        tag: 'test-notification'
+      });
+      console.log('Test notification sent successfully');
+    } catch (error) {
+      console.error('Test notification failed:', error);
+    }
+  }, [showBrowserNotification]);
+
   const value = {
     socket,
     connected,
@@ -494,7 +582,8 @@ export const SocketProvider = ({ children }) => {
     deleteMessage,
     notificationPermission,
     requestNotificationPermission,
-    isPageVisible
+    isPageVisible,
+    testNotification
   };
 
   return (

@@ -9,9 +9,11 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chats');
 const messageRoutes = require('./routes/messages');
+const pushNotificationRoutes = require('./routes/pushNotifications');
 const { authenticateToken } = require('./middleware/auth');
 const { testConnection } = require('./database/connection');
 const { setIO } = require('./socket/socketManager');
+const pushNotificationService = require('./services/pushNotificationService');
 
 const app = express();
 const server = createServer(app);
@@ -152,6 +154,7 @@ app.options('/api/cors-test', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/chats', chatRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/push-notifications', pushNotificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -336,7 +339,7 @@ io.on('connection', (socket) => {
       }
 
       // Broadcast to all participants in the chat
-      io.to(`chat-${chatId}`).emit('new-message', {
+      const socketMessage = {
         ...message,
         chat_id: chatId,
         chat_name: chatInfo?.display_name || 'Unknown Chat',
@@ -345,7 +348,18 @@ io.on('connection', (socket) => {
         sender_name: socket.user.display_name,
         sender_avatar: null,
         quotedMessage: quotedMessageData
-      });
+      };
+      
+      io.to(`chat-${chatId}`).emit('new-message', socketMessage);
+
+      // Send push notifications to users not currently in the chat
+      try {
+        await pushNotificationService.sendMessageNotification(socketMessage, chatInfo, socket.userId);
+        console.log('Push notifications sent for message:', message.id);
+      } catch (pushError) {
+        console.error('Error sending push notifications:', pushError);
+        // Don't fail the message sending if push notifications fail
+      }
 
       // Auto-update status to 'delivered' after a short delay
       setTimeout(async () => {

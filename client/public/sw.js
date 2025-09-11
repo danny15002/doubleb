@@ -130,7 +130,7 @@ self.addEventListener('sync', (event) => {
 
 // iOS PWA fix: Store push event handler for re-registration
 function handlePushEvent(event) {
-  console.log('Push event received');
+  console.log('Push event received from server');
   
   let data = {};
   if (event.data) {
@@ -143,11 +143,11 @@ function handlePushEvent(event) {
 
   const options = {
     body: data.body || 'You have a new message',
-    icon: '/manifest.json', // Will use the icon from manifest
-    badge: '/manifest.json',
+    icon: data.icon || '/manifest.json',
+    badge: data.badge || '/manifest.json',
     vibrate: [200, 100, 200],
     data: data.data || {},
-    actions: [
+    actions: data.actions || [
       {
         action: 'open',
         title: 'Open Chat',
@@ -159,12 +159,21 @@ function handlePushEvent(event) {
         icon: '/manifest.json'
       }
     ],
-    requireInteraction: true,
-    silent: false
+    requireInteraction: data.requireInteraction !== false,
+    silent: data.silent || false,
+    tag: data.tag || 'bb-chat-notification'
   };
 
   event.waitUntil(
     self.registration.showNotification(data.title || 'BB Chat', options)
+      .then(() => {
+        console.log('Server push notification shown successfully');
+      })
+      .catch(error => {
+        console.error('Failed to show server push notification:', error);
+        // Queue the notification if it fails
+        return addToNotificationQueue({ title: data.title, options });
+      })
   );
 }
 
@@ -419,9 +428,31 @@ self.addEventListener('message', (event) => {
     // iOS PWA fix: Queue notification if we can't show it immediately
     event.waitUntil(
       self.registration.showNotification(title, notificationOptions)
+        .then(() => {
+          console.log('Notification shown successfully');
+          // Send response back to main thread
+          self.clients.matchAll().then(clients => {
+            clients.forEach(client => {
+              client.postMessage({
+                type: 'NOTIFICATION_RESPONSE',
+                success: true
+              });
+            });
+          });
+        })
         .catch(async (error) => {
           console.error('Failed to show notification, queuing:', error);
           await addToNotificationQueue({ title, options: notificationOptions });
+          // Send error response back to main thread
+          self.clients.matchAll().then(clients => {
+            clients.forEach(client => {
+              client.postMessage({
+                type: 'NOTIFICATION_RESPONSE',
+                success: false,
+                error: error.message
+              });
+            });
+          });
         })
     );
   }

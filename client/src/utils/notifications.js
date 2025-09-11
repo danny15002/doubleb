@@ -99,19 +99,75 @@ class NotificationManager {
     }
 
     try {
-      // This would typically use VAPID keys from your server
-      // For now, we'll just return a mock subscription
+      // Get VAPID public key from server
+      const response = await fetch('/api/push-notifications/vapid-key');
+      const { publicKey } = await response.json();
+      
+      if (!publicKey) {
+        throw new Error('VAPID public key not available');
+      }
+
+      // Convert VAPID key to Uint8Array
+      const applicationServerKey = this.urlBase64ToUint8Array(publicKey);
+
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        // applicationServerKey: 'YOUR_VAPID_PUBLIC_KEY'
+        applicationServerKey: applicationServerKey
       });
 
       console.log('Push subscription successful:', subscription);
+      
+      // Send subscription to server
+      await this.sendSubscriptionToServer(subscription);
+      
       return subscription;
     } catch (error) {
       console.error('Error subscribing to push notifications:', error);
       return null;
     }
+  }
+
+  // Send subscription to server
+  async sendSubscriptionToServer(subscription) {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/push-notifications/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ subscription })
+      });
+
+      if (response.ok) {
+        console.log('Subscription sent to server successfully');
+        return true;
+      } else {
+        const error = await response.json();
+        console.error('Failed to send subscription to server:', error);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error sending subscription to server:', error);
+      return false;
+    }
+  }
+
+  // Convert VAPID key from base64 to Uint8Array
+  urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
   }
 
   // Unsubscribe from push notifications
