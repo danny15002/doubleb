@@ -58,9 +58,31 @@ export const SocketProvider = ({ children }) => {
     return 'denied';
   }, []);
 
-  const showBrowserNotification = useCallback((title, options) => {
+  const showBrowserNotification = useCallback(async (title, options) => {
     if (notificationPermission === 'granted' && document.hidden) {
       try {
+        // Try PWA notification first (through service worker)
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+          if (registration.active) {
+            // Send message to service worker to show notification
+            registration.active.postMessage({
+              type: 'SHOW_NOTIFICATION',
+              title,
+              options: {
+                icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
+                badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
+                requireInteraction: true,
+                silent: false,
+                ...options
+              }
+            });
+            console.log('PWA notification sent to service worker');
+            return;
+          }
+        }
+        
+        // Fallback to browser notification if service worker not available
         const notification = new Notification(title, {
           icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
           badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
@@ -77,6 +99,8 @@ export const SocketProvider = ({ children }) => {
           window.focus();
           notification.close();
         };
+        
+        console.log('Browser notification shown (fallback)');
       } catch (error) {
         console.error('Failed to show notification:', error);
       }

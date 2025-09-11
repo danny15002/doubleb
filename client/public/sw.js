@@ -251,12 +251,38 @@ self.addEventListener('message', (event) => {
       console.log('Update check completed');
     });
   }
-});
-
-// Check for updates periodically
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'CHECK_UPDATE') {
-    self.registration.update();
+  
+  // Handle PWA notification requests from main thread
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    console.log('PWA: Showing notification from main thread:', event.data.title);
+    const { title, options } = event.data;
+    
+    const notificationOptions = {
+      body: options.body || 'You have a new message',
+      icon: options.icon || '/manifest.json',
+      badge: options.badge || '/manifest.json',
+      vibrate: [200, 100, 200],
+      data: options.data || {},
+      actions: [
+        {
+          action: 'open',
+          title: 'Open Chat',
+          icon: '/manifest.json'
+        },
+        {
+          action: 'close',
+          title: 'Close',
+          icon: '/manifest.json'
+        }
+      ],
+      requireInteraction: options.requireInteraction || true,
+      silent: options.silent || false,
+      tag: options.tag || 'bb-chat-notification'
+    };
+    
+    event.waitUntil(
+      self.registration.showNotification(title, notificationOptions)
+    );
   }
 });
 
