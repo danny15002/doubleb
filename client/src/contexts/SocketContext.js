@@ -24,12 +24,12 @@ export const SocketProvider = ({ children }) => {
 
   // Request notification permission
   useEffect(() => {
-    if ('Notification' in window) {
-      setNotificationPermission(Notification.permission);
+    if ('Notification' in window && window.Notification) {
+      setNotificationPermission(window.Notification.permission);
       
       // Only request permission if it's default and user is authenticated
-      if (Notification.permission === 'default' && user) {
-        Notification.requestPermission().then(permission => {
+      if (window.Notification.permission === 'default' && user) {
+        window.Notification.requestPermission().then(permission => {
           setNotificationPermission(permission);
         });
       }
@@ -76,7 +76,7 @@ export const SocketProvider = ({ children }) => {
         if (registration.active) {
           registration.active.postMessage({
             type: 'REFRESH_NOTIFICATION_STATE',
-            permission: Notification.permission
+            permission: window.Notification ? window.Notification.permission : 'denied'
           });
         }
         
@@ -88,8 +88,8 @@ export const SocketProvider = ({ children }) => {
   }, []);
 
   const requestNotificationPermission = useCallback(async () => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
+    if ('Notification' in window && window.Notification) {
+      const permission = await window.Notification.requestPermission();
       setNotificationPermission(permission);
       return permission;
     }
@@ -122,8 +122,8 @@ export const SocketProvider = ({ children }) => {
         
         // Fallback to browser notification if service worker not available
         // Only show browser notification if page is hidden (to avoid duplicate notifications)
-        if (document.hidden) {
-          const notification = new Notification(title, {
+        if (document.hidden && window.Notification) {
+          const notification = new window.Notification(title, {
             icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
             badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
             ...options
@@ -169,7 +169,7 @@ export const SocketProvider = ({ children }) => {
       // Refresh every 3 minutes (battery friendly but keeps notifications working)
       refreshInterval = setInterval(() => {
         const now = Date.now();
-        if (Notification.permission === 'granted' && (now - lastRefreshTime) > MIN_REFRESH_INTERVAL) {
+        if (window.Notification && window.Notification.permission === 'granted' && (now - lastRefreshTime) > MIN_REFRESH_INTERVAL) {
           console.log('Periodic notification capability refresh');
           refreshNotificationCapability();
           lastRefreshTime = now;
@@ -206,7 +206,7 @@ export const SocketProvider = ({ children }) => {
 
   // iOS PWA fix: Refresh on page load/refresh
   useEffect(() => {
-    if (Notification.permission === 'granted') {
+    if (window.Notification && window.Notification.permission === 'granted') {
       console.log('Page loaded - refreshing notification capability');
       refreshNotificationCapability();
     }

@@ -2,7 +2,7 @@
 class NotificationManager {
   constructor() {
     this.isSupported = 'Notification' in window;
-    this.permission = this.isSupported ? Notification.permission : 'denied';
+    this.permission = this.isSupported ? (window.Notification ? window.Notification.permission : 'denied') : 'denied';
     this.registration = null;
   }
 
@@ -23,7 +23,7 @@ class NotificationManager {
     }
 
     try {
-      const permission = await Notification.requestPermission();
+      const permission = await window.Notification.requestPermission();
       this.permission = permission;
       return permission === 'granted';
     } catch (error) {
@@ -45,7 +45,7 @@ class NotificationManager {
     }
 
     try {
-      const notification = new Notification(title, {
+      const notification = new window.Notification(title, {
         icon: '/manifest.json',
         badge: '/manifest.json',
         vibrate: [200, 100, 200],
