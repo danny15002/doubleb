@@ -39,14 +39,52 @@ export const SocketProvider = ({ children }) => {
   // Track page visibility to determine when to show notifications
   useEffect(() => {
     const handleVisibilityChange = () => {
-      setIsPageVisible(!document.hidden);
+      const isVisible = !document.hidden;
+      setIsPageVisible(isVisible);
+      
+      // iOS PWA fix: Refresh notification capability when app becomes active
+      if (isVisible && 'Notification' in window) {
+        console.log('App became visible - refreshing notification capability');
+        refreshNotificationCapability();
+      }
+    };
+
+    // iOS PWA fix: Also listen for focus events (when PWA becomes active)
+    const handleFocus = () => {
+      if ('Notification' in window) {
+        console.log('App focused - refreshing notification capability');
+        refreshNotificationCapability();
+      }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
     
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
     };
+  }, []);
+
+  // iOS PWA fix: Refresh notification capability when app becomes active
+  const refreshNotificationCapability = useCallback(async () => {
+    if ('serviceWorker' in navigator && 'Notification' in window) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        
+        // Send a message to the service worker to refresh notification state
+        if (registration.active) {
+          registration.active.postMessage({
+            type: 'REFRESH_NOTIFICATION_STATE',
+            permission: Notification.permission
+          });
+        }
+        
+        console.log('iOS PWA: Notification capability refreshed');
+      } catch (error) {
+        console.error('Failed to refresh notification capability:', error);
+      }
+    }
   }, []);
 
   const requestNotificationPermission = useCallback(async () => {
@@ -103,9 +141,72 @@ export const SocketProvider = ({ children }) => {
         console.log('Browser notification shown (fallback)');
       } catch (error) {
         console.error('Failed to show notification:', error);
+        // iOS PWA fix: If notification fails, try to refresh capability
+        if (navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('iPad')) {
+          console.log('Notification failed, attempting capability refresh');
+          refreshNotificationCapability();
+        }
       }
     }
-  }, [notificationPermission]);
+  }, [notificationPermission, refreshNotificationCapability]);
+
+  // iOS PWA fix: Periodically refresh notification capability (battery optimized)
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+      return;
+    }
+
+    // Only refresh when page is visible and user is active
+    let refreshInterval;
+    
+    const startRefresh = () => {
+      if (refreshInterval) clearInterval(refreshInterval);
+      
+      // Refresh every 2 minutes when page is visible (less frequent)
+      refreshInterval = setInterval(() => {
+        if (Notification.permission === 'granted' && !document.hidden) {
+          console.log('Periodic notification capability refresh (page visible)');
+          refreshNotificationCapability();
+        }
+      }, 120000); // 2 minutes instead of 30 seconds
+    };
+
+    const stopRefresh = () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+        refreshInterval = null;
+      }
+    };
+
+    // Start refresh when page becomes visible
+    if (!document.hidden) {
+      startRefresh();
+    }
+
+    // Handle visibility changes
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopRefresh();
+      } else {
+        startRefresh();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      stopRefresh();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshNotificationCapability]);
+
+  // iOS PWA fix: Refresh on page load/refresh
+  useEffect(() => {
+    if (Notification.permission === 'granted') {
+      console.log('Page loaded - refreshing notification capability');
+      refreshNotificationCapability();
+    }
+  }, [refreshNotificationCapability]);
 
   useEffect(() => {
     if (user) {

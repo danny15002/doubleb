@@ -284,6 +284,17 @@ self.addEventListener('message', (event) => {
       self.registration.showNotification(title, notificationOptions)
     );
   }
+  
+  // iOS PWA fix: Handle notification state refresh
+  if (event.data && event.data.type === 'REFRESH_NOTIFICATION_STATE') {
+    console.log('iOS PWA: Refreshing notification state, permission:', event.data.permission);
+    // Re-register notification handlers for iOS
+    if (event.data.permission === 'granted') {
+      // Force re-registration of push event listener
+      self.addEventListener('push', handlePushEvent);
+      console.log('iOS PWA: Notification handlers refreshed');
+    }
+  }
 });
 
 // Handle update found
