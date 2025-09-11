@@ -16,6 +16,8 @@ const { setIO } = require('./socket/socketManager');
 const app = express();
 const server = createServer(app);
 
+console.log('process.env', process.env);
+
 // Socket.IO setup
 const io = new Server(server, {
   cors: {
