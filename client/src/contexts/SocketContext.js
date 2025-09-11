@@ -97,9 +97,9 @@ export const SocketProvider = ({ children }) => {
   }, []);
 
   const showBrowserNotification = useCallback(async (title, options) => {
-    if (notificationPermission === 'granted' && document.hidden) {
+    if (notificationPermission === 'granted') {
       try {
-        // Try PWA notification first (through service worker)
+        // Try PWA notification first (through service worker) - works when app is hidden
         if ('serviceWorker' in navigator) {
           const registration = await navigator.serviceWorker.ready;
           if (registration.active) {
@@ -121,24 +121,27 @@ export const SocketProvider = ({ children }) => {
         }
         
         // Fallback to browser notification if service worker not available
-        const notification = new Notification(title, {
-          icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
-          badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
-          ...options
-        });
-        
-        // Auto-close after 5 seconds
-        setTimeout(() => {
-          notification.close();
-        }, 5000);
-        
-        // Focus window when notification is clicked
-        notification.onclick = () => {
-          window.focus();
-          notification.close();
-        };
-        
-        console.log('Browser notification shown (fallback)');
+        // Only show browser notification if page is hidden (to avoid duplicate notifications)
+        if (document.hidden) {
+          const notification = new Notification(title, {
+            icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
+            badge: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>',
+            ...options
+          });
+          
+          // Auto-close after 5 seconds
+          setTimeout(() => {
+            notification.close();
+          }, 5000);
+          
+          // Focus window when notification is clicked
+          notification.onclick = () => {
+            window.focus();
+            notification.close();
+          };
+          
+          console.log('Browser notification shown (fallback)');
+        }
       } catch (error) {
         console.error('Failed to show notification:', error);
         // iOS PWA fix: If notification fails, try to refresh capability
@@ -150,25 +153,28 @@ export const SocketProvider = ({ children }) => {
     }
   }, [notificationPermission, refreshNotificationCapability]);
 
-  // iOS PWA fix: Periodically refresh notification capability (battery optimized)
+  // iOS PWA fix: Periodically refresh notification capability (battery optimized but works when hidden)
   useEffect(() => {
     if (!('serviceWorker' in navigator) || !('Notification' in window)) {
       return;
     }
 
-    // Only refresh when page is visible and user is active
     let refreshInterval;
+    let lastRefreshTime = 0;
+    const MIN_REFRESH_INTERVAL = 60000; // Minimum 1 minute between refreshes
     
     const startRefresh = () => {
       if (refreshInterval) clearInterval(refreshInterval);
       
-      // Refresh every 2 minutes when page is visible (less frequent)
+      // Refresh every 3 minutes (battery friendly but keeps notifications working)
       refreshInterval = setInterval(() => {
-        if (Notification.permission === 'granted' && !document.hidden) {
-          console.log('Periodic notification capability refresh (page visible)');
+        const now = Date.now();
+        if (Notification.permission === 'granted' && (now - lastRefreshTime) > MIN_REFRESH_INTERVAL) {
+          console.log('Periodic notification capability refresh');
           refreshNotificationCapability();
+          lastRefreshTime = now;
         }
-      }, 120000); // 2 minutes instead of 30 seconds
+      }, 180000); // 3 minutes
     };
 
     const stopRefresh = () => {
@@ -178,17 +184,15 @@ export const SocketProvider = ({ children }) => {
       }
     };
 
-    // Start refresh when page becomes visible
-    if (!document.hidden) {
-      startRefresh();
-    }
+    // Always start refresh to keep notifications working when app is hidden
+    startRefresh();
 
-    // Handle visibility changes
+    // Handle visibility changes - refresh immediately when app becomes visible
     const handleVisibilityChange = () => {
-      if (document.hidden) {
-        stopRefresh();
-      } else {
-        startRefresh();
+      if (!document.hidden) {
+        console.log('App became visible - immediate refresh');
+        refreshNotificationCapability();
+        lastRefreshTime = Date.now();
       }
     };
 
