@@ -78,6 +78,16 @@ export const SocketProvider = ({ children }) => {
             type: 'REFRESH_NOTIFICATION_STATE',
             permission: window.Notification ? window.Notification.permission : 'denied'
           });
+          
+          // iOS PWA fix: Notify service worker that app is active
+          registration.active.postMessage({
+            type: 'APP_ACTIVE'
+          });
+          
+          // iOS PWA fix: Check notification capability periodically
+          registration.active.postMessage({
+            type: 'CHECK_NOTIFICATION_CAPABILITY'
+          });
         }
         
         console.log('iOS PWA: Notification capability refreshed');
@@ -163,18 +173,22 @@ export const SocketProvider = ({ children }) => {
     let lastRefreshTime = 0;
     const MIN_REFRESH_INTERVAL = 60000; // Minimum 1 minute between refreshes
     
+    // Detect iOS for more aggressive refresh
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const refreshIntervalMs = isIOS ? 120000 : 180000; // 2 minutes for iOS, 3 minutes for others
+    
     const startRefresh = () => {
       if (refreshInterval) clearInterval(refreshInterval);
       
-      // Refresh every 3 minutes (battery friendly but keeps notifications working)
+      // More frequent refresh for iOS to combat notification issues
       refreshInterval = setInterval(() => {
         const now = Date.now();
         if (window.Notification && window.Notification.permission === 'granted' && (now - lastRefreshTime) > MIN_REFRESH_INTERVAL) {
-          console.log('Periodic notification capability refresh');
+          console.log(`Periodic notification capability refresh (${isIOS ? 'iOS' : 'other'})`);
           refreshNotificationCapability();
           lastRefreshTime = now;
         }
-      }, 180000); // 3 minutes
+      }, refreshIntervalMs);
     };
 
     const stopRefresh = () => {
@@ -211,6 +225,30 @@ export const SocketProvider = ({ children }) => {
       refreshNotificationCapability();
     }
   }, [refreshNotificationCapability]);
+
+  // iOS PWA fix: Clear notification queue when user is actively using the app
+  const clearNotificationQueue = useCallback(async () => {
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        if (registration.active) {
+          registration.active.postMessage({
+            type: 'CLEAR_NOTIFICATION_QUEUE'
+          });
+          console.log('iOS PWA: Notification queue cleared');
+        }
+      } catch (error) {
+        console.error('Failed to clear notification queue:', error);
+      }
+    }
+  }, []);
+
+  // Clear notification queue when user sends a message (indicates active usage)
+  const clearQueueOnActivity = useCallback(() => {
+    if (isPageVisible) {
+      clearNotificationQueue();
+    }
+  }, [isPageVisible, clearNotificationQueue]);
 
   useEffect(() => {
     if (user) {
@@ -358,13 +396,16 @@ export const SocketProvider = ({ children }) => {
         newSocket.close();
       };
     }
-  }, [user, currentChatId, showBrowserNotification, isPageVisible]);
+  }, [user, currentChatId, showBrowserNotification, isPageVisible, clearQueueOnActivity]);
 
   const sendMessage = (chatId, messageData, messageType = 'text') => {
     if (socket && connected) {
       // Handle both old format (string content) and new format (object with content and quotedMessage)
       const content = typeof messageData === 'string' ? messageData : messageData.content;
       const quotedMessage = typeof messageData === 'object' ? messageData.quotedMessage : null;
+      
+      // iOS PWA fix: Clear notification queue when user is actively sending messages
+      clearQueueOnActivity();
       
       socket.emit('send-message', { 
         chatId, 

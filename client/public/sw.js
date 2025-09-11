@@ -128,8 +128,8 @@ self.addEventListener('sync', (event) => {
   }
 });
 
-// Push event - handle incoming push notifications
-self.addEventListener('push', (event) => {
+// iOS PWA fix: Store push event handler for re-registration
+function handlePushEvent(event) {
   console.log('Push event received');
   
   let data = {};
@@ -166,7 +166,10 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'BB Chat', options)
   );
-});
+}
+
+// Register push event listener
+self.addEventListener('push', handlePushEvent);
 
 // Notification click event - handle user interaction with notifications
 self.addEventListener('notificationclick', (event) => {
@@ -226,6 +229,139 @@ async function syncOfflineMessages() {
   }
 }
 
+// iOS PWA fix: Notification queue for missed notifications
+const NOTIFICATION_QUEUE_KEY = 'bb-chat-notification-queue';
+const MAX_QUEUE_SIZE = 10;
+
+async function addToNotificationQueue(notificationData) {
+  try {
+    const existingQueue = await getNotificationQueue();
+    const queue = existingQueue || [];
+    
+    // Add timestamp and unique ID
+    const queuedNotification = {
+      id: Date.now() + Math.random(),
+      timestamp: Date.now(),
+      ...notificationData
+    };
+    
+    // Add to front of queue
+    queue.unshift(queuedNotification);
+    
+    // Keep only the most recent notifications
+    if (queue.length > MAX_QUEUE_SIZE) {
+      queue.splice(MAX_QUEUE_SIZE);
+    }
+    
+    // Store in IndexedDB or fallback to localStorage
+    await setNotificationQueue(queue);
+    console.log('Notification queued:', queuedNotification);
+  } catch (error) {
+    console.error('Failed to queue notification:', error);
+  }
+}
+
+async function getNotificationQueue() {
+  try {
+    // Try IndexedDB first
+    if ('indexedDB' in self) {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('BB-Chat-Notifications', 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const transaction = db.transaction(['notifications'], 'readonly');
+          const store = transaction.objectStore('notifications');
+          const getRequest = store.get('queue');
+          getRequest.onsuccess = () => resolve(getRequest.result || []);
+          getRequest.onerror = () => reject(getRequest.error);
+        };
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains('notifications')) {
+            db.createObjectStore('notifications');
+          }
+        };
+      });
+    }
+    
+    // Fallback to localStorage
+    const stored = localStorage.getItem(NOTIFICATION_QUEUE_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch (error) {
+    console.error('Failed to get notification queue:', error);
+    return [];
+  }
+}
+
+async function setNotificationQueue(queue) {
+  try {
+    // Try IndexedDB first
+    if ('indexedDB' in self) {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('BB-Chat-Notifications', 1);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const db = request.result;
+          const transaction = db.transaction(['notifications'], 'readwrite');
+          const store = transaction.objectStore('notifications');
+          const putRequest = store.put(queue, 'queue');
+          putRequest.onsuccess = () => resolve();
+          putRequest.onerror = () => reject(putRequest.error);
+        };
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains('notifications')) {
+            db.createObjectStore('notifications');
+          }
+        };
+      });
+    }
+    
+    // Fallback to localStorage
+    localStorage.setItem(NOTIFICATION_QUEUE_KEY, JSON.stringify(queue));
+  } catch (error) {
+    console.error('Failed to set notification queue:', error);
+  }
+}
+
+async function clearNotificationQueue() {
+  try {
+    await setNotificationQueue([]);
+    console.log('Notification queue cleared');
+  } catch (error) {
+    console.error('Failed to clear notification queue:', error);
+  }
+}
+
+// iOS PWA fix: Process queued notifications when app becomes active
+async function processQueuedNotifications() {
+  try {
+    const queue = await getNotificationQueue();
+    if (queue.length === 0) {
+      console.log('No queued notifications to process');
+      return;
+    }
+    
+    console.log(`Processing ${queue.length} queued notifications`);
+    
+    // Show the most recent notification (first in queue)
+    const latestNotification = queue[0];
+    
+    try {
+      await self.registration.showNotification(latestNotification.title, latestNotification.options);
+      console.log('Queued notification shown:', latestNotification.title);
+      
+      // Clear the queue after showing the notification
+      await clearNotificationQueue();
+    } catch (error) {
+      console.error('Failed to show queued notification:', error);
+    }
+  } catch (error) {
+    console.error('Failed to process queued notifications:', error);
+  }
+}
+
 // Helper functions for offline message management
 async function getOfflineMessages() {
   // This would typically use IndexedDB
@@ -280,9 +416,26 @@ self.addEventListener('message', (event) => {
       tag: options.tag || 'bb-chat-notification'
     };
     
+    // iOS PWA fix: Queue notification if we can't show it immediately
     event.waitUntil(
       self.registration.showNotification(title, notificationOptions)
+        .catch(async (error) => {
+          console.error('Failed to show notification, queuing:', error);
+          await addToNotificationQueue({ title, options: notificationOptions });
+        })
     );
+  }
+  
+  // iOS PWA fix: Handle app becoming active - process queued notifications
+  if (event.data && event.data.type === 'APP_ACTIVE') {
+    console.log('iOS PWA: App became active, processing queued notifications');
+    event.waitUntil(processQueuedNotifications());
+  }
+  
+  // iOS PWA fix: Clear notification queue when app is active
+  if (event.data && event.data.type === 'CLEAR_NOTIFICATION_QUEUE') {
+    console.log('iOS PWA: Clearing notification queue');
+    event.waitUntil(clearNotificationQueue());
   }
   
   // iOS PWA fix: Handle notification state refresh
@@ -291,9 +444,19 @@ self.addEventListener('message', (event) => {
     // Re-register notification handlers for iOS
     if (event.data.permission === 'granted') {
       // Force re-registration of push event listener
+      self.removeEventListener('push', handlePushEvent);
       self.addEventListener('push', handlePushEvent);
       console.log('iOS PWA: Notification handlers refreshed');
     }
+  }
+  
+  // iOS PWA fix: Handle periodic notification capability check
+  if (event.data && event.data.type === 'CHECK_NOTIFICATION_CAPABILITY') {
+    console.log('iOS PWA: Checking notification capability');
+    // Re-register all notification handlers
+    self.removeEventListener('push', handlePushEvent);
+    self.addEventListener('push', handlePushEvent);
+    console.log('iOS PWA: Notification capability refreshed');
   }
 });
 
