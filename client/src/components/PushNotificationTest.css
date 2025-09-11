@@ -77,6 +77,15 @@
   background: #1e7e34;
 }
 
+.btn-warning {
+  background: #ffc107;
+  color: #212529;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: #e0a800;
+}
+
 .test-result {
   padding: 15px;
   border-radius: 5px;

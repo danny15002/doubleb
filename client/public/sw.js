@@ -489,6 +489,27 @@ self.addEventListener('message', (event) => {
     self.addEventListener('push', handlePushEvent);
     console.log('iOS PWA: Notification capability refreshed');
   }
+  
+  // iOS PWA fix: Handle heartbeat to keep service worker alive
+  if (event.data && event.data.type === 'HEARTBEAT') {
+    console.log('iOS PWA: Service worker heartbeat received');
+    // Respond to keep the connection alive
+    event.ports[0].postMessage({ type: 'HEARTBEAT_RESPONSE', timestamp: Date.now() });
+  }
+  
+  // iOS PWA fix: Handle service worker wake-up
+  if (event.data && event.data.type === 'WAKE_UP_SERVICE_WORKER') {
+    console.log('iOS PWA: Service worker wake-up requested');
+    // Re-register all event listeners
+    self.removeEventListener('push', handlePushEvent);
+    self.addEventListener('push', handlePushEvent);
+    
+    // Send response back
+    event.ports[0].postMessage({ 
+      type: 'SERVICE_WORKER_AWAKE', 
+      timestamp: Date.now() 
+    });
+  }
 });
 
 // Handle update found

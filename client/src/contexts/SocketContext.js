@@ -110,6 +110,18 @@ export const SocketProvider = ({ children }) => {
           registration.active.postMessage({
             type: 'CHECK_NOTIFICATION_CAPABILITY'
           });
+          
+          // iOS PWA fix: Wake up service worker with MessageChannel for response
+          const wakeUpChannel = new MessageChannel();
+          wakeUpChannel.port1.onmessage = (event) => {
+            if (event.data.type === 'SERVICE_WORKER_AWAKE') {
+              console.log('iOS PWA: Service worker confirmed awake');
+            }
+          };
+          
+          registration.active.postMessage({
+            type: 'WAKE_UP_SERVICE_WORKER'
+          }, [wakeUpChannel.port2]);
         }
         
         console.log('iOS PWA: Notification capability refreshed');
@@ -240,12 +252,14 @@ export const SocketProvider = ({ children }) => {
     }
 
     let refreshInterval;
+    let heartbeatInterval;
     let lastRefreshTime = 0;
-    const MIN_REFRESH_INTERVAL = 60000; // Minimum 1 minute between refreshes
+    const MIN_REFRESH_INTERVAL = 30000; // Minimum 30 seconds between refreshes for iOS
     
     // Detect iOS for more aggressive refresh
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const refreshIntervalMs = isIOS ? 120000 : 180000; // 2 minutes for iOS, 3 minutes for others
+    const refreshIntervalMs = isIOS ? 30000 : 180000; // 30 seconds for iOS, 3 minutes for others
+    const heartbeatIntervalMs = isIOS ? 10000 : 60000; // 10 seconds for iOS, 1 minute for others
     
     const startRefresh = () => {
       if (refreshInterval) clearInterval(refreshInterval);
@@ -261,15 +275,47 @@ export const SocketProvider = ({ children }) => {
       }, refreshIntervalMs);
     };
 
+    const startHeartbeat = () => {
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      
+      // iOS PWA fix: Send heartbeat to keep service worker alive
+      heartbeatInterval = setInterval(async () => {
+        if (isIOS && 'serviceWorker' in navigator) {
+          try {
+            const registration = await navigator.serviceWorker.ready;
+            if (registration.active) {
+              const heartbeatChannel = new MessageChannel();
+              heartbeatChannel.port1.onmessage = (event) => {
+                if (event.data.type === 'HEARTBEAT_RESPONSE') {
+                  console.log('iOS PWA: Service worker heartbeat confirmed');
+                }
+              };
+              
+              registration.active.postMessage({
+                type: 'HEARTBEAT'
+              }, [heartbeatChannel.port2]);
+            }
+          } catch (error) {
+            console.error('Heartbeat failed:', error);
+          }
+        }
+      }, heartbeatIntervalMs);
+    };
+
     const stopRefresh = () => {
       if (refreshInterval) {
         clearInterval(refreshInterval);
         refreshInterval = null;
       }
+      if (heartbeatInterval) {
+        clearInterval(heartbeatInterval);
+        heartbeatInterval = null;
+      }
     };
 
     // Always start refresh to keep notifications working when app is hidden
     startRefresh();
+    startHeartbeat();
 
     // Handle visibility changes - refresh immediately when app becomes visible
     const handleVisibilityChange = () => {
@@ -293,8 +339,54 @@ export const SocketProvider = ({ children }) => {
     if (window.Notification && window.Notification.permission === 'granted') {
       console.log('Page loaded - refreshing notification capability');
       refreshNotificationCapability();
+      
+      // iOS PWA fix: Refresh push subscription on page load
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        console.log('iOS PWA: Refreshing push subscription on page load');
+        notificationManager.subscribeToPush().then(subscription => {
+          if (subscription) {
+            console.log('iOS PWA: Push subscription refreshed successfully');
+          }
+        }).catch(error => {
+          console.error('iOS PWA: Failed to refresh push subscription:', error);
+        });
+      }
     }
   }, [refreshNotificationCapability]);
+
+  // iOS PWA fix: Periodic push subscription refresh to prevent stale subscriptions
+  useEffect(() => {
+    if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+      return; // Only for iOS
+    }
+
+    let subscriptionRefreshInterval;
+    
+    const startSubscriptionRefresh = () => {
+      if (subscriptionRefreshInterval) clearInterval(subscriptionRefreshInterval);
+      
+      // Refresh push subscription every 2 minutes on iOS
+      subscriptionRefreshInterval = setInterval(async () => {
+        if (window.Notification && window.Notification.permission === 'granted') {
+          console.log('iOS PWA: Periodic push subscription refresh');
+          try {
+            await notificationManager.subscribeToPush();
+            console.log('iOS PWA: Push subscription refreshed successfully');
+          } catch (error) {
+            console.error('iOS PWA: Failed to refresh push subscription:', error);
+          }
+        }
+      }, 120000); // 2 minutes
+    };
+
+    startSubscriptionRefresh();
+
+    return () => {
+      if (subscriptionRefreshInterval) {
+        clearInterval(subscriptionRefreshInterval);
+      }
+    };
+  }, []);
 
   // iOS PWA fix: Clear notification queue when user is actively using the app
   const clearNotificationQueue = useCallback(async () => {

@@ -57,6 +57,47 @@ const PushNotificationTest = () => {
     }
   };
 
+  const testMultipleNotifications = async () => {
+    setIsLoading(true);
+    setTestResult(null);
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Send 3 notifications in quick succession to test batching
+      const promises = [];
+      for (let i = 1; i <= 3; i++) {
+        promises.push(
+          fetch('/api/push-notifications/test', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              title: `Test Notification ${i}`,
+              body: `This is test notification number ${i}`
+            })
+          })
+        );
+      }
+      
+      const responses = await Promise.all(promises);
+      const results = await Promise.all(responses.map(r => r.json()));
+      
+      const successCount = results.filter(r => r.result?.success).length;
+      setTestResult({ 
+        type: successCount > 0 ? 'success' : 'error',
+        message: `Sent ${successCount}/3 notifications. Check if you received them!`,
+        details: results
+      });
+    } catch (error) {
+      setTestResult({ type: 'error', message: `Multiple notifications test failed: ${error.message}` });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const checkSubscription = async () => {
     setIsLoading(true);
     setTestResult(null);
@@ -126,6 +167,14 @@ const PushNotificationTest = () => {
           className="btn btn-secondary"
         >
           Test Push Notification
+        </button>
+        
+        <button 
+          onClick={testMultipleNotifications}
+          disabled={isLoading}
+          className="btn btn-warning"
+        >
+          Test Multiple (iOS)
         </button>
         
         <button 
