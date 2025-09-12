@@ -34,7 +34,7 @@ const Login = () => {
     <div className="auth-form-container">
       <div className="auth-form">
         <div className="auth-header">
-          <h1>BB Chat</h1>
+          <h1></h1>
           <p>Welcome back! Please sign in to your account.</p>
         </div>
 

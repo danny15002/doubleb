@@ -209,8 +209,8 @@ class NotificationManager {
 
   // Send a test notification
   async sendTestNotification() {
-    return await this.showLocalNotification('BB Chat Test', {
-      body: 'This is a test notification from BB Chat!',
+    return await this.showLocalNotification('AppTest', {
+      body: 'This is a test notification!',
       tag: 'test-notification'
     });
   }

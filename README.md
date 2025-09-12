@@ -1,16 +1,3 @@
-# Beep Boop Chat (BB Chat)
-
-A WhatsApp clone web application built with React frontend, Node.js backend, and PostgreSQL database. Features real-time messaging, WYSIWYG text editor, and mobile-first design.
-
-## Features
-
-- 🔐 **Basic Authentication** - Simple username/email and password authentication
-- 💬 **Real-time Messaging** - WebSocket-based instant messaging
-- ✏️ **WYSIWYG Editor** - Rich text input with formatting options
-- 📱 **Mobile-First Design** - Optimized for mobile devices
-- 🎨 **Modern UI** - Clean and intuitive interface
-- 🔒 **Security** - JWT tokens, rate limiting, and input validation
-
 ## Tech Stack
 
 ### Frontend

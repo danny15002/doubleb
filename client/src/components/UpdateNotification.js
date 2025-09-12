@@ -18,7 +18,7 @@ const UpdateNotification = ({
         </div>
         <div className="update-notification-text">
           <h4>Update Available</h4>
-          <p>A new version of BB Chat is ready to install.</p>
+          <p>A new version is ready to install.</p>
         </div>
         <div className="update-notification-actions">
           {isOnline ? (

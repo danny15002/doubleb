@@ -73,7 +73,7 @@ const NotificationPermission = ({ onPermissionGranted }) => {
         
         <h3>Enable Notifications</h3>
         <p>
-          Get notified when you receive new messages, even when BB Chat is not open.
+          Get notified when you receive new messages.
         </p>
         
         <div className="notification-benefits">
@@ -110,7 +110,7 @@ const NotificationPermission = ({ onPermissionGranted }) => {
 
         <div className="notification-note">
           <small>
-            💡 <strong>Tip:</strong> On iOS, you'll need to add BB Chat to your home screen for notifications to work.
+            💡 <strong>Tip:</strong> On iOS, you'll need to add the app to your home screen for notifications to work.
           </small>
         </div>
       </div>

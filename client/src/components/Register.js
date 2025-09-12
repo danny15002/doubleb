@@ -69,7 +69,7 @@ const Register = () => {
     <div className="auth-form-container">
       <div className="auth-form">
         <div className="auth-header">
-          <h1>BB Chat</h1>
+          <h1></h1>
           <p>Create your account to start chatting.</p>
           {registrationDisabled && (
             <div className="registration-disabled-notice">

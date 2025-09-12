@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Simple startup script for BB Chat
+# Simple startup script
 # This script handles port conflicts and starts the servers
 
 echo "🚀 Starting Beep Boop Chat..."

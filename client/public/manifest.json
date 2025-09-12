@@ -1,7 +1,7 @@
 {
-  "name": "BB Chat - Beep Boop Chat",
-  "short_name": "BB Chat",
-  "description": "A WhatsApp clone web app for real-time messaging",
+  "name": "Beep Boop",
+  "short_name": "BB",
+  "description": "A really cool app",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

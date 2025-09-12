@@ -99,7 +99,7 @@ function ChatApp() {
           ) : (
             <div className="welcome-screen">
               <div className="welcome-content">
-                <h1>BB Chat</h1>
+                <h1></h1>
                 <p>Select a chat to start messaging</p>
               </div>
             </div>
@@ -122,7 +122,7 @@ function AppContent() {
     return (
       <div className="app-loading">
         <div className="loading-spinner"></div>
-        <p>Loading BB Chat...</p>
+        <p>Loading...</p>
       </div>
     );
   }

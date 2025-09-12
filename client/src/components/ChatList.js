@@ -263,7 +263,7 @@ const ChatList = ({ onChatSelect, selectedChat }) => {
               onClick={() => {
                 if ('Notification' in window && window.Notification) {
                   new window.Notification('Test Notification', {
-                    body: 'This is a test notification from BB Chat',
+                    body: 'This is a test notification',
                     icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">💬</text></svg>'
                   });
                 }
